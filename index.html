@@ -20,34 +20,41 @@
     display: flex; align-items: center; justify-content: center;
     font-family: "Source Sans 3", "Segoe UI", Arial, sans-serif;
     color: var(--ink);
-    /* Marble with faint grey veins (pure CSS, no image) over a base color that slowly moves through light
-       colors, so the screen keeps changing. The white card stays still. */
-    background-color: #f5f3ef;
-    background-image:
-      linear-gradient(115deg, transparent 38%, rgba(160, 160, 165, .10) 39%, transparent 41%),
-      linear-gradient(62deg, transparent 55%, rgba(150, 150, 155, .08) 56%, transparent 58.5%),
-      linear-gradient(145deg, transparent 20%, rgba(170, 170, 175, .07) 21.5%, transparent 23%),
-      radial-gradient(ellipse at 18% 22%, rgba(255, 255, 255, .6), transparent 55%),
-      radial-gradient(ellipse at 82% 78%, rgba(255, 255, 255, .55), transparent 50%),
-      radial-gradient(ellipse at 70% 15%, rgba(220, 218, 214, .3), transparent 45%),
-      radial-gradient(ellipse at 25% 85%, rgba(215, 213, 209, .28), transparent 45%);
-    animation: tint 36s ease-in-out infinite;
+    background: #f5f3ef;
   }
-  @keyframes tint {
-    0%, 100% { background-color: #fbe3e4; }   /* blush */
-    20%      { background-color: #fdf0cf; }   /* cream */
-    40%      { background-color: #dff3e4; }   /* mint */
-    60%      { background-color: #dcebf8; }   /* sky */
-    80%      { background-color: #ebe3f7; }   /* lavender */
+  /* AROUND THE CARD: light colors flowing all the time, like a video (a big soft gradient that keeps sliding,
+     with two light spots drifting the other way). */
+  body::before {
+    content: ""; position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(circle at 20% 30%, rgba(255, 255, 255, .55), transparent 38%),
+      radial-gradient(circle at 80% 70%, rgba(255, 255, 255, .45), transparent 38%),
+      linear-gradient(115deg, #f9c9d8, #fde3b0, #c9ecd5, #c4def7, #ddd0f6, #f9c9d8);
+    background-size: 200% 200%, 200% 200%, 400% 400%;
+    animation: flow 14s ease-in-out infinite alternate;
+  }
+  @keyframes flow {
+    0%   { background-position: 0% 0%, 100% 100%, 0% 50%; }
+    100% { background-position: 100% 100%, 0% 0%, 100% 50%; }
+  }
+  /* ...with the marble's faint grey veins on top (pure CSS, no image). */
+  body::after {
+    content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+      linear-gradient(115deg, transparent 38%, rgba(140, 140, 150, .12) 39%, transparent 41%),
+      linear-gradient(62deg, transparent 55%, rgba(140, 140, 150, .10) 56%, transparent 58.5%),
+      linear-gradient(145deg, transparent 20%, rgba(150, 150, 160, .09) 21.5%, transparent 23%),
+      linear-gradient(28deg, transparent 70%, rgba(150, 150, 160, .07) 71%, transparent 72.5%);
   }
   /* The line under the headline switches between phrases. */
   .rotator { display: grid; place-items: center; }
   .rotator > span { grid-area: 1 / 1; opacity: 0; transform: translateY(.5em); transition: opacity .7s ease, transform .7s ease; white-space: nowrap; }
-  .rotator > span.on { opacity: 1; transform: none; }
+  .rotator > span.on { opacity: 1; transform: none; transition-delay: .6s; }   /* the old line fades out first */
   /* Confetti layer over everything; clicks pass through. */
   #confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 10; }
   /* Direction signs in the marble space on each side of the card. */
   .way {
+    position: relative; z-index: 1;
     flex: 1; align-self: stretch;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: clamp(6px, 1.2vh, 20px);
@@ -62,6 +69,7 @@
     line-height: 1.1;
   }
   .card {
+    position: relative; z-index: 1; overflow: hidden; isolation: isolate;
     flex: none;
     width: min(78vw, 140vh);
     height: 84vh;
@@ -73,7 +81,23 @@
     padding: clamp(24px, 3.2vh, 60px) clamp(24px, 4vw, 90px) clamp(28px, 5vh, 90px);
     text-align: center;
   }
-  .logo { height: clamp(90px, 20vh, 260px); width: auto; display: block; }
+  /* INSIDE THE CARD: very light colors drifting all over, faint enough that the headline stays clear. */
+  .card::before {
+    content: ""; position: absolute; inset: -35%; z-index: -1;
+    background:
+      radial-gradient(circle at 25% 30%, rgba(249, 201, 216, .38), transparent 30%),
+      radial-gradient(circle at 75% 28%, rgba(201, 236, 213, .38), transparent 30%),
+      radial-gradient(circle at 62% 74%, rgba(196, 222, 247, .38), transparent 30%),
+      radial-gradient(circle at 30% 78%, rgba(253, 227, 176, .38), transparent 30%),
+      radial-gradient(circle at 50% 50%, rgba(221, 208, 246, .30), transparent 28%);
+    animation: drift 20s ease-in-out infinite alternate;
+  }
+  @keyframes drift {
+    0%   { transform: translate(0, 0) rotate(0deg) scale(1); }
+    50%  { transform: translate(7%, -6%) rotate(50deg) scale(1.08); }
+    100% { transform: translate(-7%, 6%) rotate(100deg) scale(1); }
+  }
+  .logo { height: clamp(90px, 20vh, 260px); width: auto; display: block; mix-blend-mode: multiply; }
   .middle { display: flex; flex-direction: column; align-items: center; gap: clamp(8px, 1.6vh, 28px); }
   .headline {
     font-family: "Frank Ruhl Libre", "David", serif;
@@ -136,7 +160,7 @@
     </div>
   </aside>
 
-  <!-- Party-popper confetti from all around the screen (bottom, top, sides, middle), about one pop a second, plus a light rain - so the screen always moves. -->
+  <!-- Party-popper confetti from all around the screen (bottom, top, sides, middle), a pop every ~3 seconds. -->
   <canvas id="confetti" aria-hidden="true"></canvas>
   <script>
   (() => {
@@ -163,24 +187,14 @@
         bits.push(piece(x, y, Math.cos(a) * v, Math.sin(a) * v, s, rnd(0.0035, 0.0055)));
       }
     }
-    // A light, constant confetti rain across the whole screen, so it is never empty between bursts.
-    const RAIN_PER_SEC = 25;
-    function rain() {
-      const s = Math.max(W, H) / 1000;
-      let n = RAIN_PER_SEC / 60;                  // per frame (fractions add up over frames)
-      while (n > 0) {
-        if (Math.random() < Math.min(1, n)) bits.push(piece(rnd(0, W), rnd(-40, -10), rnd(-0.6, 0.6) * s, rnd(1, 2) * s, s, 0.0012));
-        n -= 1;
-      }
-    }
     // Poppers from all around the screen, a new place every time (David 10-21: "from the bottom, from the top, from
     // the middle - it should change the whole time"). Never the same kind twice in a row.
     const KINDS = {
-      bottom: () => pop(rnd(0.08, 0.92) * W, H + 10, -90, 24, 15, 27, 130),              // shoots up from the floor
-      top:    () => pop(rnd(0.08, 0.92) * W, -10, 90, 40, 4, 12, 120),                   // sprays down from the top
-      left:   () => pop(-10, rnd(0.3, 0.85) * H, -38, 26, 13, 24, 120),                  // from the left side, up and in
-      right:  () => pop(W + 10, rnd(0.3, 0.85) * H, -142, 26, 13, 24, 120),              // from the right side, up and in
-      middle: () => pop(rnd(0.25, 0.75) * W, rnd(0.3, 0.65) * H, -90, 180, 5, 14, 140),  // a burst in all directions
+      bottom: () => pop(rnd(0.08, 0.92) * W, H + 10, -90, 24, 15, 27, 75),               // shoots up from the floor
+      top:    () => pop(rnd(0.08, 0.92) * W, -10, 90, 40, 4, 12, 70),                    // sprays down from the top
+      left:   () => pop(-10, rnd(0.3, 0.85) * H, -38, 26, 13, 24, 70),                   // from the left side, up and in
+      right:  () => pop(W + 10, rnd(0.3, 0.85) * H, -142, 26, 13, 24, 70),               // from the right side, up and in
+      middle: () => pop(rnd(0.25, 0.75) * W, rnd(0.3, 0.65) * H, -90, 180, 5, 14, 80),   // a burst in all directions
     };
     let last = "";
     function burst() {
@@ -189,12 +203,10 @@
         last = names[(Math.random() * names.length) | 0];
         KINDS[last]();
       }
-      setTimeout(burst, rnd(700, 1300));          // about one pop a second, never on a fixed beat
+      setTimeout(burst, rnd(2500, 3500));         // a pop every 3 seconds or so, never on a fixed beat (David: "make it normal")
     }
-    let raining = false;
     function frame() {
       ctx.clearRect(0, 0, W, H);
-      if (raining) rain();
       const s = Math.max(W, H) / 1000, g = s * 0.32, fall = s * 2.4;   // gravity, and paper's slow falling speed
       for (const b of bits) {
         b.vy += g; b.vx *= 0.985; b.vy *= 0.985;
@@ -216,8 +228,7 @@
     }
     size(); addEventListener("resize", size);
     requestAnimationFrame(frame);
-    const start = () => { KINDS.left(); KINDS.right(); raining = true; setTimeout(burst, 900); };   // open with two at once
-    (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(start, 400));
+    (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(burst, 400));
   })();
   </script>
 
@@ -234,7 +245,17 @@
   })();
   </script>
 
-  <!-- Reload every 60 seconds so the screen shows any change without anyone touching it. -->
-  <script>setTimeout(()=>location.reload(),60000)</script>
+  <!-- Picks up edits without anyone touching the TV: every 60 seconds it checks the published page and reloads
+       ONLY if the page changed, so the colors and confetti never jump. (Plus a fresh start every 6 hours.) -->
+  <script>
+  (() => {
+    const url = () => location.pathname + "?check=" + Date.now();
+    const get = () => fetch(url(), { cache: "no-store" }).then((r) => (r.ok ? r.text() : null)).catch(() => null);
+    let first = null;
+    get().then((t) => { first = t; });
+    setInterval(() => get().then((t) => { if (t && first && t !== first) location.reload(); else if (t && !first) first = t; }), 60000);
+    setTimeout(() => location.reload(), 6 * 60 * 60 * 1000);
+  })();
+  </script>
 </body>
 </html>
