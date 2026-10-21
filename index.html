@@ -177,35 +177,42 @@
       cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
     const rnd = (a, b) => a + Math.random() * (b - a);
-    // One popper: from (x, y), aimed up at `deg` (degrees; -90 = straight up), spreading out.
+    // One piece of confetti. Each piece has its OWN air resistance, falling speed and flutter, so pieces spread out
+    // and come down one by one - never as a clump (David 10-21: "like 50 single pieces, not one bundle").
     const piece = (x, y, vx, vy, s, fade) => ({
       x, y, vx, vy, w: rnd(7, 15) * s, h: rnd(4, 8) * s, r: rnd(0, 6.28), vr: rnd(-0.25, 0.25),
       flip: rnd(0, 6.28), vf: rnd(0.08, 0.2), c: COLORS[(Math.random() * COLORS.length) | 0],
       round: Math.random() < 0.25, life: 1, fade,
+      drag: rnd(0.972, 0.99),                    // air resistance
+      slow: rnd(0.93, 0.985),                    // how fast the sideways push dies once it falls
+      term: rnd(1.2, 3.3) * s,                   // its own falling speed
+      sway: rnd(0.3, 1.5) * s,                   // its own side-to-side flutter
     });
     // One pop: n pieces from (x, y), aimed at `deg` (-90 = straight up, 90 = down) +/- `spread`, at speeds vmin..vmax.
+    // The pieces leave over a split second (a stream, like a real popper), not all at the same instant.
+    let tick = 0, waiting = [];
     function pop(x, y, deg, spread, vmin, vmax, n) {
       const s = Math.max(W, H) / 1000;           // scale with the screen
       for (let i = 0; i < n; i++) {
         const a = (deg + rnd(-spread, spread)) * Math.PI / 180, v = rnd(vmin, vmax) * s;
-        bits.push(piece(x, y, Math.cos(a) * v, Math.sin(a) * v, s, rnd(0.0035, 0.0055)));
+        waiting.push({ at: tick + ((Math.random() * 18) | 0), p: piece(x, y, Math.cos(a) * v, Math.sin(a) * v, s, rnd(0.0035, 0.0055)) });
       }
     }
-    // ONE popper every 3 seconds, each time from a different angle around the screen - a single narrow stream like a
-    // real party popper, never a big bunch (David 10-21). Never the same spot twice in a row.
-    const POPPER = 40, CONE = 12;                // pieces per pop, and how wide the stream opens (degrees each way)
+    // A popper every 3 seconds, each time from a different angle around the screen. It sprays plenty, wide and at
+    // many speeds, so it scatters into single pieces. Never the same spot twice in a row.
+    const POPPER = 110, CONE = 22;               // pieces per pop, and how wide the spray opens (degrees each way)
     const SPOTS = {
-      bottomLeft:  () => pop(0.02 * W, H + 5, -55, CONE, 16, 26, POPPER),          // corner, up and in
-      bottomRight: () => pop(0.98 * W, H + 5, -125, CONE, 16, 26, POPPER),
-      bottom:      () => pop(rnd(0.35, 0.65) * W, H + 5, -90, CONE, 18, 28, POPPER), // straight up from the floor
-      left:        () => pop(-5, rnd(0.45, 0.7) * H, -40, CONE, 15, 24, POPPER),     // from the side, up and in
-      right:       () => pop(W + 5, rnd(0.45, 0.7) * H, -140, CONE, 15, 24, POPPER),
-      topLeft:     () => pop(0.02 * W, -5, 20, CONE, 12, 22, POPPER),                // corner, across and down
-      topRight:    () => pop(0.98 * W, -5, 160, CONE, 12, 22, POPPER),
+      bottomLeft:  () => pop(0.02 * W, H + 5, -55, CONE, 10, 27, POPPER),          // corner, up and in
+      bottomRight: () => pop(0.98 * W, H + 5, -125, CONE, 10, 27, POPPER),
+      bottom:      () => pop(rnd(0.35, 0.65) * W, H + 5, -90, CONE, 12, 29, POPPER), // straight up from the floor
+      left:        () => pop(-5, rnd(0.45, 0.7) * H, -40, CONE, 9, 26, POPPER),      // from the side, up and in
+      right:       () => pop(W + 5, rnd(0.45, 0.7) * H, -140, CONE, 9, 26, POPPER),
+      topLeft:     () => pop(0.02 * W, -5, 20, CONE, 8, 23, POPPER),                 // corner, across and down
+      topRight:    () => pop(0.98 * W, -5, 160, CONE, 8, 23, POPPER),
     };
     let last = "";
     function burst() {
-      if (bits.length < 1500) {                   // keep it light on the office PC
+      if (bits.length < 1800) {                   // keep it light on the office PC
         const names = Object.keys(SPOTS).filter((k) => k !== last);
         last = names[(Math.random() * names.length) | 0];
         SPOTS[last]();
@@ -224,14 +231,20 @@
     }
     function frame() {
       ctx.clearRect(0, 0, W, H);
+      tick++;
+      if (waiting.length) {                       // release the popper pieces whose moment has come
+        const now = waiting.filter((w) => w.at <= tick);
+        for (const w of now) bits.push(w.p);
+        if (now.length) waiting = waiting.filter((w) => w.at > tick);
+      }
       rain();
-      const s = Math.max(W, H) / 1000, g = s * 0.32, fall = s * 2.4;   // gravity, and paper's slow falling speed
+      const g = Math.max(W, H) / 1000 * 0.32;    // gravity
       for (const b of bits) {
-        b.vy += g; b.vx *= 0.985; b.vy *= 0.985;
-        if (b.vy > 0) b.vx *= 0.96;              // on the way down: drift, don't sail off sideways
-        if (b.vy > fall) b.vy = fall;
+        b.vy += g; b.vx *= b.drag; b.vy *= b.drag;
+        if (b.vy > 0) b.vx *= b.slow;            // on the way down: drift, don't sail off sideways
+        if (b.vy > b.term) b.vy = b.term;
         b.flip += b.vf;
-        b.x += b.vx + Math.sin(b.flip * 0.5) * 0.6 * s; b.y += b.vy; b.r += b.vr;
+        b.x += b.vx + Math.sin(b.flip * 0.5) * b.sway; b.y += b.vy; b.r += b.vr;
         if (b.vy > 0) b.life -= b.fade;          // fade on the way down
         ctx.save();
         ctx.globalAlpha = Math.max(0, Math.min(1, b.life));
