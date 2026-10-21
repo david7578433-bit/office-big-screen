@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RM Support</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #0f4537;      /* RM Support logo green */
+    --gold: #b8892d;
+    --gold-light: #d9b56a;
+    --ink: #2b2b2b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    font-family: "Source Sans 3", "Segoe UI", Arial, sans-serif;
+    color: var(--ink);
+    /* White marble: a soft stone base with faint grey veins (pure CSS, no image). */
+    background-color: #f5f3ef;
+    background-image:
+      linear-gradient(115deg, transparent 38%, rgba(160, 160, 165, .10) 39%, transparent 41%),
+      linear-gradient(62deg, transparent 55%, rgba(150, 150, 155, .08) 56%, transparent 58.5%),
+      linear-gradient(145deg, transparent 20%, rgba(170, 170, 175, .07) 21.5%, transparent 23%),
+      radial-gradient(ellipse at 18% 22%, rgba(255, 255, 255, .95), transparent 55%),
+      radial-gradient(ellipse at 82% 78%, rgba(255, 255, 255, .9), transparent 50%),
+      radial-gradient(ellipse at 70% 15%, rgba(220, 218, 214, .45), transparent 45%),
+      radial-gradient(ellipse at 25% 85%, rgba(215, 213, 209, .4), transparent 45%);
+  }
+  .card {
+    width: min(78vw, 140vh);
+    height: 84vh;
+    background: #fff;
+    border-radius: clamp(16px, 1.6vw, 36px);
+    box-shadow: 0 2vw 5vw rgba(40, 40, 40, .12), 0 .3vw .8vw rgba(40, 40, 40, .06);
+    border-top: clamp(4px, .45vw, 10px) solid var(--gold-light);
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: clamp(24px, 3.2vh, 60px) clamp(24px, 4vw, 90px) clamp(28px, 5vh, 90px);
+    text-align: center;
+  }
+  .logo { height: clamp(90px, 20vh, 260px); width: auto; display: block; }
+  .middle { display: flex; flex-direction: column; align-items: center; gap: clamp(8px, 1.6vh, 28px); }
+  .headline {
+    font-family: "Frank Ruhl Libre", "David", serif;
+    font-weight: 700;
+    font-size: clamp(72px, min(15vw, 26vh), 330px);
+    line-height: 1;
+    color: var(--green);
+  }
+  .label {
+    font-family: "Source Sans 3", Arial, sans-serif;
+    font-weight: 600;
+    font-size: clamp(14px, min(1.7vw, 3vh), 40px);
+    letter-spacing: .45em;
+    padding-left: .45em;            /* balances the letter-spacing so it stays centered */
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+  .rule { width: clamp(80px, 12vw, 260px); height: 2px; background: linear-gradient(90deg, transparent, var(--gold-light), transparent); }
+  .bottom {
+    font-size: clamp(20px, min(2.7vw, 4.8vh), 64px);
+    font-weight: 400;
+    color: var(--ink);
+  }
+  .bottom strong { color: var(--green); font-weight: 600; }
+</style>
+</head>
+<body>
+  <main class="card">
+    <img class="logo" src="logo.jpg" alt="RM Support">
+
+    <!-- EDIT BELOW: change only the text between the tags. Save, commit and push; the TV picks it up within a minute. -->
+    <div class="middle">
+      <h1 class="headline" lang="he" dir="rtl">מזל טוב</h1>
+      <div class="label">Mazal Tov</div>
+      <div class="rule" aria-hidden="true"></div>
+    </div>
+    <p class="bottom">The program is renewed through <strong>October 27</strong></p>
+    <!-- EDIT ABOVE -->
+  </main>
+
+  <!-- Reload every 60 seconds so the screen shows any change without anyone touching it. -->
+  <script>setTimeout(()=>location.reload(),60000)</script>
+</body>
+</html>
