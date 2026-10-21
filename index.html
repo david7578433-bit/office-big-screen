@@ -31,8 +31,10 @@
       radial-gradient(circle at 80% 70%, rgba(255, 255, 255, .45), transparent 38%),
       linear-gradient(115deg, #f9c9d8, #fde3b0, #c9ecd5, #c4def7, #ddd0f6, #f9c9d8);
     background-size: 200% 200%, 200% 200%, 400% 400%;
-    animation: flow 14s ease-in-out infinite alternate;
+    /* slides back and forth, and slowly walks through ALL colors (one full round a minute) */
+    animation: flow 14s ease-in-out infinite alternate, allcolors 60s linear infinite;
   }
+  @keyframes allcolors { to { filter: hue-rotate(360deg); } }
   @keyframes flow {
     0%   { background-position: 0% 0%, 100% 100%, 0% 50%; }
     100% { background-position: 100% 100%, 0% 0%, 100% 50%; }
@@ -81,22 +83,24 @@
     padding: clamp(24px, 3.2vh, 60px) clamp(24px, 4vw, 90px) clamp(28px, 5vh, 90px);
     text-align: center;
   }
-  /* INSIDE THE CARD: very light colors drifting all over, faint enough that the headline stays clear. */
+  /* INSIDE THE CARD: a few clear colors at a time (red, yellow, blue, green, ...) moving and changing fast,
+     soft enough that the headline stays easy to read. */
   .card::before {
     content: ""; position: absolute; inset: -35%; z-index: -1;
     background:
-      radial-gradient(circle at 25% 30%, rgba(249, 201, 216, .38), transparent 30%),
-      radial-gradient(circle at 75% 28%, rgba(201, 236, 213, .38), transparent 30%),
-      radial-gradient(circle at 62% 74%, rgba(196, 222, 247, .38), transparent 30%),
-      radial-gradient(circle at 30% 78%, rgba(253, 227, 176, .38), transparent 30%),
-      radial-gradient(circle at 50% 50%, rgba(221, 208, 246, .30), transparent 28%);
-    animation: drift 20s ease-in-out infinite alternate;
+      radial-gradient(circle at 25% 30%, rgba(255, 82, 82, .26), transparent 30%),    /* red */
+      radial-gradient(circle at 75% 28%, rgba(255, 214, 10, .30), transparent 30%),   /* yellow */
+      radial-gradient(circle at 64% 74%, rgba(56, 152, 255, .26), transparent 30%),   /* blue */
+      radial-gradient(circle at 28% 76%, rgba(46, 204, 113, .26), transparent 30%),   /* green */
+      radial-gradient(circle at 50% 50%, rgba(255, 140, 0, .16), transparent 26%);    /* orange */
+    animation: drift 9s ease-in-out infinite alternate, cardcolors 14s linear infinite;
   }
   @keyframes drift {
     0%   { transform: translate(0, 0) rotate(0deg) scale(1); }
-    50%  { transform: translate(7%, -6%) rotate(50deg) scale(1.08); }
-    100% { transform: translate(-7%, 6%) rotate(100deg) scale(1); }
+    50%  { transform: translate(8%, -7%) rotate(70deg) scale(1.1); }
+    100% { transform: translate(-8%, 7%) rotate(140deg) scale(1); }
   }
+  @keyframes cardcolors { to { filter: hue-rotate(360deg); } }
   .logo { height: clamp(90px, 20vh, 260px); width: auto; display: block; mix-blend-mode: multiply; }
   .middle { display: flex; flex-direction: column; align-items: center; gap: clamp(8px, 1.6vh, 28px); }
   .headline {
@@ -160,7 +164,7 @@
     </div>
   </aside>
 
-  <!-- Party-popper confetti from all around the screen (bottom, top, sides, middle), a pop every ~3 seconds. -->
+  <!-- Confetti: a gentle rain the whole time, and every 3 seconds one party popper from a different angle. -->
   <canvas id="confetti" aria-hidden="true"></canvas>
   <script>
   (() => {
@@ -187,26 +191,40 @@
         bits.push(piece(x, y, Math.cos(a) * v, Math.sin(a) * v, s, rnd(0.0035, 0.0055)));
       }
     }
-    // Poppers from all around the screen, a new place every time (David 10-21: "from the bottom, from the top, from
-    // the middle - it should change the whole time"). Never the same kind twice in a row.
-    const KINDS = {
-      bottom: () => pop(rnd(0.08, 0.92) * W, H + 10, -90, 24, 15, 27, 75),               // shoots up from the floor
-      top:    () => pop(rnd(0.08, 0.92) * W, -10, 90, 40, 4, 12, 70),                    // sprays down from the top
-      left:   () => pop(-10, rnd(0.3, 0.85) * H, -38, 26, 13, 24, 70),                   // from the left side, up and in
-      right:  () => pop(W + 10, rnd(0.3, 0.85) * H, -142, 26, 13, 24, 70),               // from the right side, up and in
-      middle: () => pop(rnd(0.25, 0.75) * W, rnd(0.3, 0.65) * H, -90, 180, 5, 14, 80),   // a burst in all directions
+    // ONE popper every 3 seconds, each time from a different angle around the screen - a single narrow stream like a
+    // real party popper, never a big bunch (David 10-21). Never the same spot twice in a row.
+    const POPPER = 40, CONE = 12;                // pieces per pop, and how wide the stream opens (degrees each way)
+    const SPOTS = {
+      bottomLeft:  () => pop(0.02 * W, H + 5, -55, CONE, 16, 26, POPPER),          // corner, up and in
+      bottomRight: () => pop(0.98 * W, H + 5, -125, CONE, 16, 26, POPPER),
+      bottom:      () => pop(rnd(0.35, 0.65) * W, H + 5, -90, CONE, 18, 28, POPPER), // straight up from the floor
+      left:        () => pop(-5, rnd(0.45, 0.7) * H, -40, CONE, 15, 24, POPPER),     // from the side, up and in
+      right:       () => pop(W + 5, rnd(0.45, 0.7) * H, -140, CONE, 15, 24, POPPER),
+      topLeft:     () => pop(0.02 * W, -5, 20, CONE, 12, 22, POPPER),                // corner, across and down
+      topRight:    () => pop(0.98 * W, -5, 160, CONE, 12, 22, POPPER),
     };
     let last = "";
     function burst() {
       if (bits.length < 1500) {                   // keep it light on the office PC
-        const names = Object.keys(KINDS).filter((k) => k !== last);
+        const names = Object.keys(SPOTS).filter((k) => k !== last);
         last = names[(Math.random() * names.length) | 0];
-        KINDS[last]();
+        SPOTS[last]();
       }
-      setTimeout(burst, rnd(2500, 3500));         // a pop every 3 seconds or so, never on a fixed beat (David: "make it normal")
+      setTimeout(burst, 3000);
+    }
+    // ...and a gentle confetti rain the whole time.
+    const RAIN_PER_SEC = 18;
+    function rain() {
+      const s = Math.max(W, H) / 1000;
+      let n = RAIN_PER_SEC / 60;                  // per frame (fractions add up over frames)
+      while (n > 0) {
+        if (Math.random() < Math.min(1, n)) bits.push(piece(rnd(0, W), rnd(-40, -10), rnd(-0.6, 0.6) * s, rnd(1, 2) * s, s, 0.0012));
+        n -= 1;
+      }
     }
     function frame() {
       ctx.clearRect(0, 0, W, H);
+      rain();
       const s = Math.max(W, H) / 1000, g = s * 0.32, fall = s * 2.4;   // gravity, and paper's slow falling speed
       for (const b of bits) {
         b.vy += g; b.vx *= 0.985; b.vy *= 0.985;
