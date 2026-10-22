@@ -248,6 +248,13 @@
   #reached .remoji { font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; font-size: clamp(60px, 16vh, 240px); line-height: 1; }
   #reached .rname { font-family: "Frank Ruhl Libre", "David", serif; font-weight: 700; font-size: clamp(56px, min(8vw, 15vh), 220px); line-height: 1.1; color: #fff; margin-top: 2vh; }
   #reached .rwhat { font-weight: 600; font-size: clamp(24px, min(3.4vw, 6.4vh), 92px); color: var(--gold-light); margin-top: 1.5vh; }
+  /* the daily halachos slide (David 10-21: the two halachos from דעהו, read by CareHub from their daily email's feed) */
+  .torah { width: 88%; display: flex; flex-direction: column; gap: 1.4vh; text-align: right; }
+  .torah p { font-family: "Frank Ruhl Libre", "David", serif; font-weight: 500; font-size: clamp(16px, min(1.75vw, 3.1vh), 42px); line-height: 1.45; color: var(--ink); }
+  .torah p bdi { font-weight: 700; color: var(--green); }
+  .torah.long p { font-size: clamp(14px, min(1.5vw, 2.7vh), 36px); }
+  .torahtitle { font-family: "Frank Ruhl Libre", "David", serif; font-weight: 700; font-size: clamp(26px, min(3.4vw, 6vh), 80px); line-height: 1.15; color: var(--green); }
+  .label.he { letter-spacing: .08em; padding-left: 0; }
   /* photo slides */
   .photo { max-width: 100%; max-height: 50vh; border-radius: clamp(10px, 1vw, 24px); box-shadow: 0 1vw 3vw rgba(40, 40, 40, .18); object-fit: contain; background: #fff; }
   .photocap { font-family: "Frank Ruhl Libre", serif; font-weight: 500; font-size: clamp(20px, min(2.4vw, 4.2vh), 58px); color: var(--ink); margin-top: 1.4vh; }
@@ -836,6 +843,24 @@
       s.append(mid);
       return s;
     }
+    function torahSlide(t) {
+      const s = el("section", "slide"); s.dataset.kind = "torah";
+      const mid = el("div", "middle");
+      mid.append(el("div", "label he", "הלכות היום · דעהו", { dir: "rtl" }));
+      if (t.title) mid.append(el("h1", "torahtitle", t.title, { dir: "rtl" }));
+      mid.append(el("div", "rule", null, { "aria-hidden": "true" }));
+      const items = list(t.items).filter((x) => typeof x === "string" && x.trim());
+      const box = el("div", items.join("").length > 380 ? "torah long" : "torah", null, { dir: "rtl" });
+      for (const x of items) {
+        const m = /^(\d{1,3})\.\s*([\s\S]*)$/.exec(x.trim()), p = el("p");
+        if (m) p.append(el("bdi", null, m[1] + ".", { dir: "ltr" }), " " + m[2]);   // "5." stays "5." in a right-to-left line
+        else p.textContent = x;
+        box.append(p);
+      }
+      mid.append(box);
+      s.append(mid);
+      return s;
+    }
     function weatherSlide() {
       const s = el("section", "slide"); s.dataset.kind = "weather";
       const mid = el("div", "middle");
@@ -885,6 +910,7 @@
       for (const m of list(cfg.slides)) {
         if (m && (m.title || m.text) && (!m.from || m.from <= p.ymd) && (!m.to || p.ymd <= m.to)) slides.push(messageSlide(m));
       }
+      if (cfg.torah && list(cfg.torah.items).length) slides.push(torahSlide(cfg.torah));
       const stats = list(cfg.stats).filter((x) => x && x.label && Number.isFinite(+x.value));
       if (stats.length) slides.push(statsSlide(stats));
       const g = cfg.goal;
@@ -922,11 +948,17 @@
       if (now) { void $("stage").offsetWidth; setTimeout(() => slides.forEach((x) => x.classList.remove("now")), 50); }
     }
     function rotate(first) {
-      clearInterval(slideTimer);
+      clearTimeout(slideTimer);
       if (night) { window.setConfetti(false); return; }
       show(cur < 0 || cur >= slides.length ? 0 : cur, first);
-      const sec = Math.max(5, +cfg.seconds || 20);
-      if (slides.length > 1) slideTimer = setInterval(() => show((cur + 1) % slides.length), sec * 1000);
+      next();
+    }
+    // each slide stays `seconds`; the halachos slide twice as long (two halachos take a while to read)
+    function next() {
+      clearTimeout(slideTimer);
+      if (slides.length < 2) return;
+      const s = slides[cur], sec = Math.max(5, +cfg.seconds || 20) * (s && s.dataset.kind === "torah" ? 2 : 1);
+      slideTimer = setTimeout(() => { show((cur + 1) % slides.length); next(); }, sec * 1000);
     }
     // the gold line under the Mazal Tov headline switches every 3.5 seconds
     setInterval(() => {
