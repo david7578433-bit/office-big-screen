@@ -117,14 +117,17 @@
   }
   /* INSIDE THE CARD: a few clear colors at a time (red, yellow, blue, green, ...) moving and changing fast,
      soft enough that the headline stays easy to read. */
+  /* A big SQUARE layer (1.7 x the card's width), so its turning never uncovers a corner of the card. */
   .card::before {
-    content: ""; position: absolute; inset: -35%; z-index: -1;
+    content: ""; position: absolute; z-index: -1;
+    width: calc(var(--box) * 1.7); height: calc(var(--box) * 1.7);
+    left: calc(var(--box) * -.35); top: calc(50% - var(--box) * .85);
     background:
-      radial-gradient(circle at 25% 30%, rgba(255, 82, 82, .26), transparent 30%),    /* red */
-      radial-gradient(circle at 75% 28%, rgba(255, 214, 10, .30), transparent 30%),   /* yellow */
-      radial-gradient(circle at 64% 74%, rgba(56, 152, 255, .26), transparent 30%),   /* blue */
-      radial-gradient(circle at 28% 76%, rgba(46, 204, 113, .26), transparent 30%),   /* green */
-      radial-gradient(circle at 50% 50%, rgba(255, 140, 0, .16), transparent 26%);    /* orange */
+      radial-gradient(circle at 25% 39%, rgba(255, 82, 82, .26), transparent 27%),    /* red */
+      radial-gradient(circle at 75% 38%, rgba(255, 214, 10, .30), transparent 27%),   /* yellow */
+      radial-gradient(circle at 64% 63%, rgba(56, 152, 255, .26), transparent 27%),   /* blue */
+      radial-gradient(circle at 28% 64%, rgba(46, 204, 113, .26), transparent 27%),   /* green */
+      radial-gradient(circle at 50% 50%, rgba(255, 140, 0, .16), transparent 23%);    /* orange */
     animation: drift 9s ease-in-out infinite alternate, cardcolors 14s linear infinite;
   }
   @keyframes drift {
@@ -135,14 +138,15 @@
   @keyframes cardcolors { to { filter: hue-rotate(360deg); } }
   .logo { height: clamp(80px, 17vh, 230px); width: auto; display: block; flex: none; mix-blend-mode: multiply; }
 
-  /* QR code in the card's top-right corner (only when a link is set). */
+  /* QR codes in the card's top corners (only when set): the first top-right, the second top-left. */
   .qr {
     position: absolute; top: clamp(14px, 2.6vh, 48px); right: clamp(14px, 2vw, 48px);
     width: clamp(96px, 15vh, 210px);
     display: flex; flex-direction: column; align-items: center; gap: .6vh;
   }
+  .qr.left { right: auto; left: clamp(14px, 2vw, 48px); }
   .qr canvas { width: 100%; height: auto; display: block; background: #fff; border-radius: clamp(6px, .6vw, 14px); box-shadow: 0 .3vw 1vw rgba(40, 40, 40, .12); image-rendering: pixelated; }
-  .qr div { font-weight: 600; font-size: clamp(11px, min(.85vw, 1.6vh), 22px); letter-spacing: .08em; color: var(--green); line-height: 1.15; }
+  .qr div { white-space: pre-line; font-weight: 600; font-size: clamp(11px, min(.85vw, 1.6vh), 22px); letter-spacing: .08em; color: var(--green); line-height: 1.15; }
 
   /* SLIDES: they take turns in the card, fading one into the next. */
   .stage { position: relative; flex: 1; width: 100%; }
@@ -228,7 +232,8 @@
 
     <main class="card">
       <img class="logo" src="logo.jpg" alt="RM Support">
-      <div class="qr" id="qr" hidden><canvas width="1" height="1"></canvas><div></div></div>
+      <div class="qr" id="qrRight" hidden><canvas width="1" height="1"></canvas><div></div></div>
+      <div class="qr left" id="qrLeft" hidden><canvas width="1" height="1"></canvas><div></div></div>
       <div class="stage" id="stage"></div>
     </main>
 
@@ -366,12 +371,13 @@
     // (and whenever it can't be reached) the screen reads config.json next to this page, and if even that fails,
     // the built-in copy below.
     const CONFIG_URL = "";
+    const KEY = (location.hash.match(/key=([^&]+)/) || [])[1] || "";   // the TV opens .../#key=... ; the key is never in this file
     const DEFAULT = {
       seconds: 20,
       mazal: { show: true, headline: "מזל טוב", lines: ["Mazal Tov", "Congratulations", "¡Felicidades!"], bottom: "The program is renewed till", bottomStrong: "October 2027" },
-      slides: [], people: [], stats: [], qr: { label: "", link: "" },
+      slides: [], people: [], stats: [], qrs: [],
       signs: { left: ["Food", "Restrooms"], right: ["HR"] },
-      hours: { sun: ["08:00", "19:00"], mon: ["08:00", "19:00"], tue: ["08:00", "19:00"], wed: ["08:00", "19:00"], thu: ["08:00", "19:00"], fri: ["08:00", "14:00"], sat: null },
+      hours: { sun: ["08:00", "22:00"], mon: ["08:00", "22:00"], tue: ["08:00", "22:00"], wed: ["08:00", "22:00"], thu: ["08:00", "22:00"], fri: ["08:00", "sunset-120"], sat: null },
     };
     const $ = (id) => document.getElementById(id);
     const el = (tag, cls, text, attrs) => {
@@ -509,20 +515,40 @@
         side.style.visibility = box.children.length ? "" : "hidden";
       }
     }
-    function qr() {
-      const box = $("qr"), link = cfg.qr && String(cfg.qr.link || "").trim();
-      if (!link || typeof qrcode !== "function") { box.hidden = true; return; }
+    // Wi-Fi QR text: WIFI:T:WPA;S:<network>;P:<password>;;  (\ ; , : " are escaped with a backslash)
+    function wifiText(w) {
+      if (!w || !String(w.ssid || "").trim()) return "";
+      const esc = (v) => String(v).replace(/([\\;,:"])/g, "\\$1");
+      const type = w.password ? (w.type === "WEP" ? "WEP" : "WPA") : "nopass";
+      return `WIFI:T:${type};S:${esc(w.ssid)};${w.password ? `P:${esc(w.password)};` : ""}${w.hidden ? "H:true;" : ""};`;
+    }
+    // Up to two QR codes (David 10-21: the Wi-Fi, and the copy machine / scanner): the first in the card's
+    // top-right corner, the second top-left. Each is a link or a Wi-Fi network; the Wi-Fi password comes from
+    // CareHub's admin page, never from this public code.
+    function qrItems() {
+      const items = list(cfg.qrs).slice();
+      if (cfg.qr && (cfg.qr.link || cfg.qr.wifi)) items.unshift(cfg.qr);
+      return items.filter((x) => x && (wifiText(x.wifi) || String(x.link || "").trim())).slice(0, 2);
+    }
+    function drawQR(box, item) {
+      if (!item || typeof qrcode !== "function") { box.hidden = true; return; }
+      const wifi = wifiText(item.wifi), text = wifi || String(item.link).trim();
       try {
         if (qrcode.stringToBytesFuncs && qrcode.stringToBytesFuncs["UTF-8"]) qrcode.stringToBytes = qrcode.stringToBytesFuncs["UTF-8"];
-        const q = qrcode(0, "M"); q.addData(link); q.make();
+        const q = qrcode(0, "M"); q.addData(text); q.make();
         const n = q.getModuleCount(), cell = 10, pad = 3, cv = box.querySelector("canvas"), c = cv.getContext("2d");
         cv.width = cv.height = (n + pad * 2) * cell;
         c.fillStyle = "#fff"; c.fillRect(0, 0, cv.width, cv.height);
         c.fillStyle = "#0f4537";
         for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (q.isDark(r, k)) c.fillRect((k + pad) * cell, (r + pad) * cell, cell, cell);
-        box.querySelector("div").textContent = (cfg.qr.label || "").trim();
+        box.querySelector("div").textContent = String(item.label || "").trim() || (wifi ? "Scan for Wi-Fi\n" + item.wifi.ssid : "");
         box.hidden = false;
       } catch { box.hidden = true; }
+    }
+    function qr() {
+      const items = qrItems();
+      drawQR($("qrRight"), items[0]);
+      drawQR($("qrLeft"), items[1]);
     }
     function mazalSlide(m) {
       const s = el("section", "slide"); s.dataset.kind = "mazal";
@@ -642,11 +668,34 @@
     }, 3500);
 
     // ---------- Office hours -> day / night ----------
+    // Sunset in Monroe, NY on a given day (the standard NOAA sunrise/sunset formula), as "HH:MM" New York time.
+    function sunset(ymd) {
+      const [Y, M, D] = ymd.split("-").map(Number), lat = 41.3309, lng = -74.1868, rad = Math.PI / 180;
+      const N = Math.round((Date.UTC(Y, M - 1, D) - Date.UTC(Y, 0, 0)) / 864e5);
+      const t = N + (18 - lng / 15) / 24, Ms = 0.9856 * t - 3.289;
+      const L = (Ms + 1.916 * Math.sin(Ms * rad) + 0.02 * Math.sin(2 * Ms * rad) + 282.634 + 360) % 360;
+      let RA = (Math.atan(0.91764 * Math.tan(L * rad)) / rad + 360) % 360;
+      RA = (RA + Math.floor(L / 90) * 90 - Math.floor(RA / 90) * 90) / 15;
+      const sinDec = 0.39782 * Math.sin(L * rad), cosDec = Math.cos(Math.asin(sinDec));
+      const cosH = (Math.cos(90.833 * rad) - sinDec * Math.sin(lat * rad)) / (cosDec * Math.cos(lat * rad));
+      const H = Math.acos(cosH) / rad / 15;
+      let UT = (H + RA - 0.06571 * t - 6.622 - lng / 15 + 48) % 24;
+      if (UT < 12) UT += 24;                     // New York sunsets are after noon UTC; small values are the next UTC day
+      return ny(new Date(Date.UTC(Y, M - 1, D) + UT * 3600e3)).hm;
+    }
+    // A closing time can be "HH:MM" or "sunset-120" (= 120 minutes before sunset; David 10-21: Friday until
+    // 2 hours before sunset).
+    function timeOf(v, p) {
+      const m = /^sunset-(\d{1,3})$/.exec(String(v));
+      if (!m) return String(v);
+      const [h, mi] = sunset(p.ymd).split(":").map(Number), x = h * 60 + mi - +m[1];
+      return `${String(Math.floor(x / 60)).padStart(2, "0")}:${String(x % 60).padStart(2, "0")}`;
+    }
     function open(p) {
       const hours = cfg.hours;
       if (!hours || typeof hours !== "object") return true;
       const h = hours[p.dow];
-      return Array.isArray(h) && h.length === 2 && p.hm >= h[0] && p.hm < h[1];
+      return Array.isArray(h) && h.length === 2 && p.hm >= timeOf(h[0], p) && p.hm < timeOf(h[1], p);
     }
     function tickDay(p) {
       const isNight = !open(p);
@@ -661,10 +710,12 @@
 
     // ---------- Load content now, then every 2 minutes (changes show without reloading) ----------
     async function load() {
-      for (const u of [CONFIG_URL, "config.json"]) {
+      for (const u of [CONFIG_URL && KEY ? CONFIG_URL : "", "config.json"]) {
         if (!u) continue;
         try {
-          const r = await fetch(u + (u.includes("?") ? "&" : "?") + "v=" + Date.now(), { cache: "no-store" });
+          const r = u === CONFIG_URL
+            ? await fetch(u, { cache: "no-store", headers: { "X-Screen-Key": decodeURIComponent(KEY) } })
+            : await fetch(u + "?v=" + Date.now(), { cache: "no-store" });
           if (!r.ok) continue;
           const j = await r.json();
           if (j && typeof j === "object" && !Array.isArray(j)) return j;
