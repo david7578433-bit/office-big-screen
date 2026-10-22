@@ -5,26 +5,71 @@
   "mazal": {
     "show": true,
     "headline": "מזל טוב",
-    "lines": ["Mazal Tov", "Congratulations", "¡Felicidades!"],
+    "lines": [
+      "Mazal Tov",
+      "Congratulations",
+      "¡Felicidades!"
+    ],
     "bottom": "The program is renewed till",
     "bottomStrong": "October 2027"
   },
   "slides": [],
   "people": [],
   "qrs": [],
-  "signs": { "left": ["Food", "Restrooms"], "right": ["HR"] },
-  "mincha": { "show": true, "time": "15:45", "before": 15, "after": 15 },
+  "signs": {
+    "left": [
+      "Food",
+      "Restrooms"
+    ],
+    "right": [
+      "HR"
+    ]
+  },
+  "mincha": {
+    "show": true,
+    "time": "15:45",
+    "before": 15,
+    "after": 15,
+    "skip": "2026-10-22"
+  },
   "zmanim": true,
   "candles": 15,
   "forecast": true,
-  "music": { "show": true, "channel": 11, "from": "09:30", "to": "19:00", "volume": 40, "seasons": true, "quiet": true, "afterMincha": 30 },
+  "music": {
+    "show": true,
+    "channel": 11,
+    "from": "09:30",
+    "to": "19:00",
+    "volume": 40,
+    "seasons": true,
+    "quiet": true,
+    "afterMincha": 30
+  },
   "hours": {
-    "sun": ["08:00", "22:00"],
-    "mon": ["08:00", "22:00"],
-    "tue": ["08:00", "22:00"],
-    "wed": ["08:00", "22:00"],
-    "thu": ["08:00", "22:00"],
-    "fri": ["08:00", "sunset-120"],
+    "sun": [
+      "08:00",
+      "22:00"
+    ],
+    "mon": [
+      "08:00",
+      "22:00"
+    ],
+    "tue": [
+      "08:00",
+      "22:00"
+    ],
+    "wed": [
+      "08:00",
+      "22:00"
+    ],
+    "thu": [
+      "08:00",
+      "22:00"
+    ],
+    "fri": [
+      "08:00",
+      "sunset-120"
+    ],
     "sat": null
   },
   "stats": []

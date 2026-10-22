@@ -226,6 +226,8 @@
   /* MINCHA (David 10-21): a big pop-up over everything - from 15 minutes before Mincha a countdown
      ("מנחה אין 15 מינוט", one minute less each minute), then just "מנחה" for 15 minutes. */
   #mincha { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; background: rgba(15, 69, 55, .97); text-align: center; }
+  #mincha { cursor: pointer; }
+  #mincha .mhint { position: absolute; left: 0; right: 0; bottom: 4vh; font-size: clamp(14px, 2.4vh, 32px); color: rgba(255, 255, 255, .55); }
   #mincha .mbox { animation: popin .8s cubic-bezier(.2, 1.4, .4, 1) both; }
   @keyframes popin { from { transform: scale(.6); opacity: 0; } }
   .mword { font-family: "Frank Ruhl Libre", "David", serif; font-weight: 700; font-size: clamp(120px, 34vh, 520px); line-height: 1; color: #fff; }
@@ -340,7 +342,7 @@
 
   <div id="announce" hidden><div class="abox"><div class="alabel">Announcement</div><div class="atext" dir="auto"></div></div></div>
 
-  <div id="mincha" hidden><div class="mbox"><div class="mword" lang="yi" dir="rtl">מנחה</div><div class="mwhen" lang="yi" dir="rtl"></div></div></div>
+  <div id="mincha" hidden><div class="mbox"><div class="mword" lang="yi" dir="rtl">מנחה</div><div class="mwhen" lang="yi" dir="rtl"></div></div><div class="mhint">Done davening? Tap the screen.</div></div>
 
   <div id="night" hidden><div class="nbox"><div id="nclock"></div><div id="ndate"></div><div id="nhdate" class="heb" lang="he" dir="rtl"></div></div></div>
 
@@ -1063,7 +1065,9 @@
       const min = (hm) => +hm.slice(0, 2) * 60 + +hm.slice(3, 5);
       const before = Number.isFinite(+m.before) ? +m.before : 15, after = Number.isFinite(+m.after) ? +m.after : 15;
       const left = t ? min(t) - min(p.hm) : 0;            // minutes until Mincha (0 = now, below 0 = started)
-      const on = !!t && !night && ((left > 0 && left <= before) || (left <= 0 && -left < after));
+      // David 10-22 "how do I skip Mincha today, we prayed already" / "it should be about end praying": a tap on the
+      // pop-up ends Mincha for today (bell, pop-up and the music's quiet time), or CareHub's mincha.skip = today.
+      const on = !!t && !night && !minchaSkipped(p) && ((left > 0 && left <= before) || (left <= 0 && -left < after));
       when.textContent = on && left > 0 ? `אין ${left} מינוט` : "";
       when.hidden = !(on && left > 0);
       // The bell (David 10-22): when the countdown starts, then every 5 minutes (3:30, 3:35, 3:40), and at Mincha
@@ -1080,6 +1084,15 @@
       confetti();
     }
     let minchaRung = "";
+    let minchaDone = "";
+    try { minchaDone = localStorage.getItem("minchaDone") || ""; } catch {}
+    const minchaSkipped = (p) => minchaDone === p.ymd || (cfg.mincha && cfg.mincha.skip === p.ymd);
+    $("mincha").addEventListener("click", () => {
+      const p = ny();
+      minchaDone = p.ymd;
+      try { localStorage.setItem("minchaDone", p.ymd); } catch {}
+      mincha(p);
+    });
     // A soft three-note bell, made in the browser (no sound file). Chrome plays it only if the TV's browser allows
     // sound without a click: start it with --autoplay-policy=no-user-gesture-required, or tap the screen once.
     let audio = null;
@@ -1144,7 +1157,7 @@
       const inHours = /^\d{2}:\d{2}$/.test(M.from || "") && /^\d{2}:\d{2}$/.test(M.to || "") && p.hm >= M.from && p.hm < M.to;
       // David 10-22: "Mincha is about 20 min, so from 3:30 till 4:15 no music" = from the countdown until 30 min after Mincha
       const mi = cfg.mincha || {}, mm = (hm) => +hm.slice(0, 2) * 60 + +hm.slice(3, 5);
-      const minchaQuiet = mi.show !== false && /^\d{2}:\d{2}$/.test(mi.time || "") &&
+      const minchaQuiet = mi.show !== false && !minchaSkipped(p) && /^\d{2}:\d{2}$/.test(mi.time || "") &&
         mm(p.hm) >= mm(mi.time) - (Number.isFinite(+mi.before) ? +mi.before : 15) && mm(p.hm) < mm(mi.time) + (Number.isFinite(+M.afterMincha) ? +M.afterMincha : 30);
       const on = M.show !== false && !night && inHours && !minchaQuiet && !(M.quiet !== false && mourning(now));
       const ch = (M.seasons !== false && seasonChannel(now, p)) || +M.channel || 11;
