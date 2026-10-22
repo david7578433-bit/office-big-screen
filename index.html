@@ -537,10 +537,9 @@
     // Up to two QR codes (David 10-21: the Wi-Fi, and the copy machine / scanner): the first in the card's
     // top-right corner, the second top-left. Each is a link or a Wi-Fi network; the Wi-Fi password comes from
     // CareHub's admin page, never from this public code.
-    function qrItems() {
-      const items = list(cfg.qrs).slice();
-      if (cfg.qr && (cfg.qr.link || cfg.qr.wifi)) items.unshift(cfg.qr);
-      return items.filter((x) => x && (wifiText(x.wifi) || String(x.link || "").trim())).slice(0, 2);
+    function qrItems() {                         // by position: an empty first code leaves the top-right corner empty
+      const usable = (x) => (x && (wifiText(x.wifi) || String(x.link || "").trim()) ? x : null);
+      return list(cfg.qrs).slice(0, 2).map(usable);
     }
     function drawQR(box, item) {
       if (!item || typeof qrcode !== "function") { box.hidden = true; return; }
