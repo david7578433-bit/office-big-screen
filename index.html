@@ -192,6 +192,14 @@
   .num { font-family: "Frank Ruhl Libre", serif; font-weight: 700; font-size: clamp(40px, min(5.6vw, 10vh), 132px); line-height: 1; color: var(--green); font-variant-numeric: tabular-nums; }
   .what { font-weight: 600; font-size: clamp(14px, min(1.4vw, 2.5vh), 34px); color: #555; }
 
+  /* MINCHA (David 10-21): a big pop-up over everything - from 15 minutes before Mincha a countdown
+     ("מנחה אין 15 מינוט", one minute less each minute), then just "מנחה" for 15 minutes. */
+  #mincha { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; background: rgba(15, 69, 55, .97); text-align: center; }
+  #mincha .mbox { animation: popin .8s cubic-bezier(.2, 1.4, .4, 1) both; }
+  @keyframes popin { from { transform: scale(.6); opacity: 0; } }
+  .mword { font-family: "Frank Ruhl Libre", "David", serif; font-weight: 700; font-size: clamp(120px, 34vh, 520px); line-height: 1; color: #fff; }
+  .mwhen { font-family: "Frank Ruhl Libre", "David", serif; font-weight: 500; font-size: clamp(40px, 11vh, 170px); line-height: 1.1; color: var(--gold-light); margin-top: 3vh; }
+
   /* NIGHT: outside office hours the screen goes dark - just a dim clock that moves a little every minute
      (so nothing burns into the TV), no colors, no confetti. */
   body.night { background: #070a09; }
@@ -243,6 +251,8 @@
       <div class="places"></div>
     </aside>
   </div>
+
+  <div id="mincha" hidden><div class="mbox"><div class="mword" lang="yi" dir="rtl">מנחה</div><div class="mwhen" lang="yi" dir="rtl"></div></div></div>
 
   <div id="night" hidden><div class="nbox"><div id="nclock"></div><div id="ndate"></div><div id="nhdate" class="heb" lang="he" dir="rtl"></div></div></div>
 
@@ -377,6 +387,7 @@
       mazal: { show: true, headline: "מזל טוב", lines: ["Mazal Tov", "Congratulations", "¡Felicidades!"], bottom: "The program is renewed till", bottomStrong: "October 2027" },
       slides: [], people: [], stats: [], qrs: [],
       signs: { left: ["Food", "Restrooms"], right: ["HR"] },
+      mincha: { show: true, time: "15:45", before: 15, after: 15 },
       hours: { sun: ["08:00", "22:00"], mon: ["08:00", "22:00"], tue: ["08:00", "22:00"], wed: ["08:00", "22:00"], thu: ["08:00", "22:00"], fri: ["08:00", "sunset-120"], sat: null },
     };
     const $ = (id) => document.getElementById(id);
@@ -470,6 +481,7 @@
       // night: nudge the dim clock to a new spot each minute so nothing burns into the TV
       $("night").firstElementChild.style.transform = `translate(${(Math.random() * 12 - 6).toFixed(1)}vw, ${(Math.random() * 12 - 6).toFixed(1)}vh)`;
       tickDay(p);
+      mincha(p);
     }
 
     // ---------- Weather for Monroe, NY (US National Weather Service, free, no key) every 15 minutes ----------
@@ -622,7 +634,7 @@
       }
     }
 
-    let slides = [], cur = -1, slideTimer = 0, night = false;
+    let slides = [], cur = -1, slideTimer = 0, night = false, minchaOn = false;
     function build(p) {
       const stage = $("stage");
       stage.textContent = "";
@@ -646,7 +658,7 @@
       slides.forEach((s, j) => { s.classList.toggle("now", !!now); s.classList.toggle("on", j === i); });
       cur = i;
       const s = slides[i];
-      window.setConfetti(!!s && s.dataset.kind === "mazal" && !night);
+      window.setConfetti(!!s && s.dataset.kind === "mazal" && !night && !minchaOn);
       if (s && s.dataset.kind === "stats") countUp(s);
       if (now) { void $("stage").offsetWidth; setTimeout(() => slides.forEach((x) => x.classList.remove("now")), 50); }
     }
@@ -706,6 +718,24 @@
         rotate(true);
       }
       if (p.ymd !== dayKey) { dayKey = p.ymd; build(p); }   // new day: birthdays, dated messages
+    }
+
+    // ---------- Mincha pop-up (every day the screen is on) ----------
+    function mincha(p) {
+      const m = cfg.mincha || {}, box = $("mincha"), when = box.querySelector(".mwhen");
+      const t = m.show !== false && /^\d{2}:\d{2}$/.test(m.time || "") ? m.time : "";
+      const min = (hm) => +hm.slice(0, 2) * 60 + +hm.slice(3, 5);
+      const before = Number.isFinite(+m.before) ? +m.before : 15, after = Number.isFinite(+m.after) ? +m.after : 15;
+      const left = t ? min(t) - min(p.hm) : 0;            // minutes until Mincha (0 = now, below 0 = started)
+      const on = !!t && !night && ((left > 0 && left <= before) || (left <= 0 && -left < after));
+      when.textContent = on && left > 0 ? `אין ${left} מינוט` : "";
+      when.hidden = !(on && left > 0);
+      if (on === minchaOn) return;
+      minchaOn = on;
+      box.hidden = !on;
+      if (on) { const b = box.firstElementChild; b.style.animation = "none"; void b.offsetWidth; b.style.animation = ""; }
+      const s = slides[cur];
+      window.setConfetti(!!s && s.dataset.kind === "mazal" && !night && !minchaOn);
     }
 
     // ---------- Load content now, then every 2 minutes (changes show without reloading) ----------
