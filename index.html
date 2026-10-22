@@ -562,17 +562,32 @@
     const HM = new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
     const hm12 = (d) => HM.format(d).split(/\s+/)[0];
     const minute = (d, up) => new Date((up ? Math.ceil : Math.floor)(d.getTime() / 60000) * 60000);
+    // David 10-21: also סוז"ק (מג"א + גר"א), סוז"ת, חצות and ר"ת. The morning ones show until chatzos, the
+    // afternoon ones after it, so the line stays short. Rounding the safe way: a deadline (סוף זמן) and shkiah DOWN,
+    // the start of something (netz, mincha gedola, R"T) UP, chatzos to the nearest minute.
     function zmanim(now, p) {
       const box = $("zmanim"), sub = $("sub");
-      const { rise, set } = sunTimes(p.ymd), shaah = (set - rise) / 12;
-      const items = [
-        ["נץ", minute(rise, true)],                                  // sunrise: rounded up
-        ["מנחה גדולה", minute(new Date(rise.getTime() + 6.5 * shaah), true)],
-        ["שקיעה", minute(set, false)],                               // sunset: rounded down
-      ];
+      const { rise, set } = sunTimes(p.ymd), shaah = (set - rise) / 12;   // GRA: sunrise to sunset
+      const at = (t) => new Date(t);
+      const alos = rise.getTime() - 72 * 60000, tzeis = set.getTime() + 72 * 60000, shaahMga = (tzeis - alos) / 12;   // MGA: 72 min
+      const chatzos = at(Math.round((rise.getTime() + set.getTime()) / 2 / 60000) * 60000);
+      const items = now < chatzos
+        ? [
+            ["נץ", minute(rise, true)],
+            ["סוז״ק מג״א", minute(at(alos + 3 * shaahMga), false)],
+            ["גר״א", minute(at(rise.getTime() + 3 * shaah), false)],
+            ["סוז״ת", minute(at(rise.getTime() + 4 * shaah), false)],
+            ["חצות", chatzos],
+          ]
+        : [
+            ["חצות", chatzos],
+            ["מנחה גדולה", minute(at(rise.getTime() + 6.5 * shaah), true)],
+            ["שקיעה", minute(set, false)],
+            ["ר״ת", minute(at(tzeis), true)],                       // Rabbeinu Tam: 72 minutes after sunset
+          ];
       const candles = Number.isFinite(+cfg.candles) ? +cfg.candles : 15;
       const light = new Date(minute(set, false).getTime() - candles * 60000);
-      if (p.dow === "fri") items.push(["הדלקת נרות", light]);
+      if (p.dow === "fri") items.splice(items.length - 1, 0, ["הדלקת נרות", light]);
       box.textContent = "";
       if (cfg.zmanim !== false) {
         for (const [name, at] of items) {
@@ -584,9 +599,29 @@
       box.hidden = cfg.zmanim === false;
       // Friday: candle-lighting time and how long until Shabbos, under the greeting
       const left = Math.round((light - now) / 60000);
+      // other days: how long until the next Yom Tov (David 10-21: "Chanukah in 34 days")
+      const yt = nextYomTov(p.ymd);
       sub.textContent = p.dow === "fri" && left > 0
         ? `Candle lighting ${hm12(light)} · Shabbos in ${left >= 60 ? Math.floor(left / 60) + " h " : ""}${left % 60} min`
-        : "Welcome to RM Support";
+        : yt ? `${yt.name} ${yt.days === 1 ? "tomorrow" : `in ${yt.days} days`}` : "Welcome to RM Support";
+    }
+    // The next Yom Tov from today (Hebrew calendar), worked out once a day.
+    const YOMTOV = [
+      ["Tishri", 1, "Rosh Hashana"], ["Tishri", 10, "Yom Kippur"], ["Tishri", 15, "Sukkos"], ["Kislev", 25, "Chanukah"],
+      ["Adar", 14, "Purim"], ["Adar II", 14, "Purim"], ["Nisan", 15, "Pesach"], ["Iyar", 18, "Lag BaOmer"], ["Sivan", 6, "Shavuos"],
+    ];
+    let ytCache = { day: "", value: null };
+    function nextYomTov(ymd) {
+      if (ytCache.day === ymd) return ytCache.value;
+      const [y, m, d] = ymd.split("-").map(Number);
+      let value = null;
+      for (let i = 1; i <= 400 && !value; i++) {
+        const h = heb(new Date(Date.UTC(y, m - 1, d + i, 17)));    // noon in New York, i days ahead
+        const hit = YOMTOV.find(([mm, dd]) => mm === h.month && dd === h.day);
+        if (hit) value = { name: hit[2], days: i };
+      }
+      ytCache = { day: ymd, value };
+      return value;
     }
 
     // ---------- Weather for Monroe, NY (US National Weather Service, free, no key) every 15 minutes ----------
@@ -979,8 +1014,29 @@
       minchaOn = on;
       box.hidden = !on;
       if (on) { const b = box.firstElementChild; b.style.animation = "none"; void b.offsetWidth; b.style.animation = ""; }
+      if (on && left > 0) chime();               // David 10-21: a sound when the Mincha pop-up comes up
       confetti();
     }
+    // A soft three-note bell, made in the browser (no sound file). Chrome plays it only if the TV's browser allows
+    // sound without a click: start it with --autoplay-policy=no-user-gesture-required, or tap the screen once.
+    let audio = null;
+    function chime() {
+      try {
+        audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+        if (audio.state === "suspended") audio.resume();
+        const t0 = audio.currentTime + 0.05;
+        [784, 659, 523].forEach((hz, i) => {        // G5, E5, C5
+          const o = audio.createOscillator(), g = audio.createGain(), t = t0 + i * 0.55;
+          o.type = "sine"; o.frequency.value = hz;
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+          o.connect(g).connect(audio.destination);
+          o.start(t); o.stop(t + 1.7);
+        });
+      } catch {}
+    }
+    addEventListener("pointerdown", () => { try { audio = audio || new AudioContext(); audio.resume(); } catch {} }, { once: true });
 
     // ---------- Announcement pop-up (from CareHub's "Show now"; checked every second, so it ends on time) ----------
     function announceTick() {
