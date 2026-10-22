@@ -477,7 +477,7 @@
       signs: { left: ["Food", "Restrooms"], right: ["HR"] },
       mincha: { show: true, time: "15:45", before: 15, after: 15 },
       zmanim: true, candles: 15, forecast: true,
-      music: { show: true, channel: 11, from: "09:30", to: "19:00", volume: 40, seasons: true, quiet: true },
+      music: { show: true, channel: 11, from: "09:30", to: "19:00", volume: 40, seasons: true, quiet: true, afterMincha: 30 },
       hours: { sun: ["08:00", "22:00"], mon: ["08:00", "22:00"], tue: ["08:00", "22:00"], wed: ["08:00", "22:00"], thu: ["08:00", "22:00"], fri: ["08:00", "sunset-120"], sat: null },
     };
     const $ = (id) => document.getElementById(id);
@@ -1122,7 +1122,11 @@
     function musicTick() {
       const M = cfg.music || {}, now = new Date(), p = ny(now);
       const inHours = /^\d{2}:\d{2}$/.test(M.from || "") && /^\d{2}:\d{2}$/.test(M.to || "") && p.hm >= M.from && p.hm < M.to;
-      const on = M.show !== false && !night && inHours && !(M.quiet !== false && mourning(now));
+      // David 10-22: "Mincha is about 20 min, so from 3:30 till 4:15 no music" = from the countdown until 30 min after Mincha
+      const mi = cfg.mincha || {}, mm = (hm) => +hm.slice(0, 2) * 60 + +hm.slice(3, 5);
+      const minchaQuiet = mi.show !== false && /^\d{2}:\d{2}$/.test(mi.time || "") &&
+        mm(p.hm) >= mm(mi.time) - (Number.isFinite(+mi.before) ? +mi.before : 15) && mm(p.hm) < mm(mi.time) + (Number.isFinite(+M.afterMincha) ? +M.afterMincha : 30);
+      const on = M.show !== false && !night && inHours && !minchaQuiet && !(M.quiet !== false && mourning(now));
       const ch = (M.seasons !== false && seasonChannel(now, p)) || +M.channel || 11;
       const muted = minchaOn || annOn || lrOn;
       music.volume = muted ? 0 : Math.max(0, Math.min(1, (Number.isFinite(+M.volume) ? +M.volume : 40) / 100));
