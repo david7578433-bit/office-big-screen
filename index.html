@@ -442,7 +442,7 @@
       slides: [], people: [], stats: [], qrs: [],
       signs: { left: ["Food", "Restrooms"], right: ["HR"] },
       mincha: { show: true, time: "15:45", before: 15, after: 15 },
-      zmanim: true, candles: 18, forecast: true,
+      zmanim: true, candles: 15, forecast: true,
       hours: { sun: ["08:00", "22:00"], mon: ["08:00", "22:00"], tue: ["08:00", "22:00"], wed: ["08:00", "22:00"], thu: ["08:00", "22:00"], fri: ["08:00", "sunset-120"], sat: null },
     };
     const $ = (id) => document.getElementById(id);
@@ -553,7 +553,7 @@
         ["מנחה גדולה", minute(new Date(rise.getTime() + 6.5 * shaah), true)],
         ["שקיעה", minute(set, false)],                               // sunset: rounded down
       ];
-      const candles = Number.isFinite(+cfg.candles) ? +cfg.candles : 18;
+      const candles = Number.isFinite(+cfg.candles) ? +cfg.candles : 15;
       const light = new Date(minute(set, false).getTime() - candles * 60000);
       if (p.dow === "fri") items.push(["הדלקת נרות", light]);
       box.textContent = "";
