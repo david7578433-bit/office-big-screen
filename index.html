@@ -133,6 +133,25 @@
       radial-gradient(circle at 28% 64%, rgba(46, 204, 113, .26), transparent 27%),   /* green */
       radial-gradient(circle at 50% 50%, rgba(255, 140, 0, .16), transparent 23%);    /* orange */
     animation: drift 9s ease-in-out infinite alternate, cardcolors 14s linear infinite;
+    opacity: 0; transition: opacity 1.2s ease;
+  }
+  /* David 10-21: the fun colors come ONLY on a happy slide (Mazal Tov, birthday, anniversary, welcome, shout-out);
+     every other slide gets calm, grown-up colors (sage, sand, slate blue, taupe) that slowly shift. */
+  .card.happy::before { opacity: 1; }
+  .card:not(.happy)::before { animation-play-state: paused; }
+  .card::after {
+    content: ""; position: absolute; inset: 0; z-index: -1;
+    background:
+      radial-gradient(circle at 22% 25%, rgba(255, 255, 255, .45), transparent 40%),
+      linear-gradient(120deg, #d6e8dc, #f3e5c8, #d3e1f1, #ecd9d2, #d6e8dc);
+    background-size: 200% 200%, 400% 400%;
+    animation: calmflow 30s ease-in-out infinite alternate;
+    transition: opacity 1.2s ease;
+  }
+  .card.happy::after { opacity: 0; animation-play-state: paused; }
+  @keyframes calmflow {
+    0%   { background-position: 0% 0%, 0% 50%; }
+    100% { background-position: 100% 100%, 100% 50%; }
   }
   @keyframes drift {
     0%   { transform: translate(0, 0) rotate(0deg) scale(1); }
@@ -734,10 +753,12 @@
       cur = -1;
       rotate(true);
     }
+    const HAPPY = new Set(["mazal", "birthday", "anniversary", "welcome", "shoutout"]);
     function show(i, now) {
       slides.forEach((s, j) => { s.classList.toggle("now", !!now); s.classList.toggle("on", j === i); });
       cur = i;
       const s = slides[i];
+      document.querySelector(".card").classList.toggle("happy", !!s && HAPPY.has(s.dataset.kind));
       window.setConfetti(!!s && s.dataset.kind === "mazal" && !night && !minchaOn);
       if (s && s.dataset.kind === "stats") countUp(s);
       if (now) { void $("stage").offsetWidth; setTimeout(() => slides.forEach((x) => x.classList.remove("now")), 50); }
