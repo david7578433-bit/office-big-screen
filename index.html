@@ -562,7 +562,7 @@
     const HM = new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
     const hm12 = (d) => HM.format(d).split(/\s+/)[0];
     const minute = (d, up) => new Date((up ? Math.ceil : Math.floor)(d.getTime() / 60000) * 60000);
-    // David 10-21: also סוז"ק (מג"א + גר"א), סוז"ת, חצות and ר"ת. The morning ones show until chatzos, the
+    // David 10-21: also סוז"ק (מג"א), סוז"ת (גר"א), חצות and ר"ת. The morning ones show until chatzos, the
     // afternoon ones after it, so the line stays short. Rounding the safe way: a deadline (סוף זמן) and shkiah DOWN,
     // the start of something (netz, mincha gedola, R"T) UP, chatzos to the nearest minute.
     function zmanim(now, p) {
@@ -574,9 +574,8 @@
       const items = now < chatzos
         ? [
             ["נץ", minute(rise, true)],
-            ["סוז״ק מג״א", minute(at(alos + 3 * shaahMga), false)],
-            ["גר״א", minute(at(rise.getTime() + 3 * shaah), false)],
-            ["סוז״ת", minute(at(rise.getTime() + 4 * shaah), false)],
+            ["סוז״ק מג״א", minute(at(alos + 3 * shaahMga), false)],     // David 10-21: krias shema by the MGA,
+            ["סוז״ת גר״א", minute(at(rise.getTime() + 4 * shaah), false)], // tefila by the GRA
             ["חצות", chatzos],
           ]
         : [
