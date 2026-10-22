@@ -380,7 +380,7 @@
     // Where the screen's content comes from. CareHub's admin page will feed it from CONFIG_URL; until that is live
     // (and whenever it can't be reached) the screen reads config.json next to this page, and if even that fails,
     // the built-in copy below.
-    const CONFIG_URL = "";
+    const CONFIG_URL = "https://carehub.rmsupportva.com/share/office-screen";
     const KEY = (location.hash.match(/key=([^&]+)/) || [])[1] || "";   // the TV opens .../#key=... ; the key is never in this file
     const DEFAULT = {
       seconds: 20,
