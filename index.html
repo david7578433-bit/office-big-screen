@@ -255,6 +255,14 @@
   .torah.long p { font-size: clamp(14px, min(1.5vw, 2.7vh), 36px); }
   .torahtitle { font-family: "Frank Ruhl Libre", "David", serif; font-weight: 700; font-size: clamp(26px, min(3.4vw, 6vh), 80px); line-height: 1.15; color: var(--green); }
   .label.he { letter-spacing: .08em; padding-left: 0; }
+  /* STORY DAYS (David 10-21: "in story days put it few times in the day, in the morning, in lunch time"): the
+     story full screen at the set times, scrolling slowly from top to bottom, then back to the slides. */
+  #longread { position: fixed; inset: 0; z-index: 19; display: flex; flex-direction: column; align-items: center; background: linear-gradient(180deg, #faf6ec, #f1ead9); padding: 5vh 0 0; text-align: center; }
+  #longread .lrlabel { font-weight: 600; font-size: clamp(14px, 2.6vh, 36px); letter-spacing: .08em; color: var(--gold); }
+  #longread .lrtitle { font-family: "Frank Ruhl Libre", "David", serif; font-weight: 700; font-size: clamp(28px, min(4vw, 7vh), 96px); color: var(--green); margin: 1vh 4vw 2vh; line-height: 1.15; }
+  #longread .lrbody { width: 72vw; flex: 1; overflow: hidden; text-align: right; mask-image: linear-gradient(180deg, transparent, #000 4%, #000 90%, transparent); }
+  #longread .lrbody p { font-family: "Frank Ruhl Libre", "David", serif; font-weight: 500; font-size: clamp(20px, min(2.3vw, 4.1vh), 56px); line-height: 1.6; color: var(--ink); margin: 0 0 2.4vh; }
+  #longread .lrbody .pad { height: 30vh; }
   /* photo slides */
   .photo { max-width: 100%; max-height: 50vh; border-radius: clamp(10px, 1vw, 24px); box-shadow: 0 1vw 3vw rgba(40, 40, 40, .18); object-fit: contain; background: #fff; }
   .photocap { font-family: "Frank Ruhl Libre", serif; font-weight: 500; font-size: clamp(20px, min(2.4vw, 4.2vh), 58px); color: var(--ink); margin-top: 1.4vh; }
@@ -325,6 +333,8 @@
       <div class="places"></div>
     </aside>
   </div>
+
+  <div id="longread" hidden><div class="lrlabel" dir="rtl">דעהו</div><div class="lrtitle" dir="rtl"></div><div class="lrbody" dir="rtl"></div></div>
 
   <div id="reached" hidden><div class="rbox"><div class="remoji">🎉</div><div class="rname" dir="auto"></div><div class="rwhat"></div></div></div>
 
@@ -563,6 +573,7 @@
       tickDay(p);
       mincha(p);
       notice(p);
+      longReadTick(p);
     }
 
     // ---------- Zmanim (Monroe, NY; GRA: a "shaah zmanis" = 1/12 of sunrise to sunset) + Friday candle lighting ----------
@@ -925,7 +936,7 @@
     // confetti only while the Mazal Tov slide shows, and never under a pop-up
     const confetti = () => {
       const s = slides[cur];
-      window.setConfetti(!!s && s.dataset.kind === "mazal" && !night && !minchaOn && !annOn);
+      window.setConfetti(!!s && s.dataset.kind === "mazal" && !night && !minchaOn && !annOn && !lrOn);
     };
     const HAPPY = new Set(["mazal", "birthday", "anniversary", "welcome", "shoutout"]);
     function show(i, now) {
@@ -1079,6 +1090,31 @@
       box.hidden = !on;
       if (on) { const b = box.firstElementChild; b.style.animation = "none"; void b.offsetWidth; b.style.animation = ""; }
       confetti();
+    }
+
+    // ---------- Story days: the story full screen at the set times ----------
+    let lrOn = false, lrDone = "", lrTimer = 0;
+    function longReadTick(p) {
+      const L = cfg.longRead;
+      if (!L || night || lrOn || !list(L.times).includes(p.hm) || lrDone === p.ymd + p.hm) return;
+      const paras = list(L.paragraphs).filter((x) => typeof x === "string" && x.trim());
+      if (!paras.length) return;
+      lrDone = p.ymd + p.hm;
+      const box = $("longread"), body = box.querySelector(".lrbody");
+      box.querySelector(".lrtitle").textContent = L.title || "";
+      body.textContent = "";
+      for (const x of paras) body.append(el("p", null, x));
+      body.append(el("div", "pad"));
+      body.scrollTop = 0;
+      box.hidden = false; lrOn = true; confetti();
+      // about 10 letters a second to read, at least 1.5 and at most 8 minutes; 8 s still at the top, then a slow scroll
+      const chars = paras.join("").length, total = Math.min(480, Math.max(90, chars / 10)) * 1000, t0 = Date.now();
+      clearInterval(lrTimer);
+      lrTimer = setInterval(() => {
+        const t = Date.now() - t0, k = Math.min(1, Math.max(0, (t - 8000) / (total - 16000)));
+        body.scrollTop = k * (body.scrollHeight - body.clientHeight);
+        if (t >= total || night) { clearInterval(lrTimer); box.hidden = true; lrOn = false; confetti(); }
+      }, 50);
     }
 
     // ---------- "Reached the goal" pop-up ----------
