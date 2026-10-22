@@ -7,17 +7,21 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@500;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<!-- WHAT THE SCREEN SAYS lives in config.json (until CareHub's admin page is live). This file is only the look. -->
 <style>
   :root {
     --green: #0f4537;      /* RM Support logo green */
     --gold: #b8892d;
     --gold-light: #d9b56a;
     --ink: #2b2b2b;
+    --box: min(78vw, 140vh);   /* width of the top bar and the card */
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
   html, body { width: 100%; height: 100%; overflow: hidden; }
   body {
-    display: flex; align-items: center; justify-content: center;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2vh;
     font-family: "Source Sans 3", "Segoe UI", Arial, sans-serif;
     color: var(--ink);
     background: #f5f3ef;
@@ -48,22 +52,51 @@
       linear-gradient(145deg, transparent 20%, rgba(150, 150, 160, .09) 21.5%, transparent 23%),
       linear-gradient(28deg, transparent 70%, rgba(150, 150, 160, .07) 71%, transparent 72.5%);
   }
+
+  /* TOP BAR: greeting | clock + dates | Monroe weather */
+  .topbar {
+    position: relative; z-index: 1;
+    width: var(--box);
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 2vw;
+    padding: 1.3vh 2.2vw;
+    background: rgba(255, 255, 255, .7);
+    border-radius: clamp(12px, 1.2vw, 28px);
+    box-shadow: 0 .6vw 2vw rgba(40, 40, 40, .08);
+    color: var(--green);
+  }
+  .greet { justify-self: start; }
+  #greeting { font-family: "Frank Ruhl Libre", serif; font-weight: 700; font-size: clamp(22px, min(2.5vw, 4.4vh), 60px); line-height: 1.1; }
+  .welcome { font-weight: 600; font-size: clamp(10px, min(.9vw, 1.6vh), 22px); letter-spacing: .3em; text-transform: uppercase; color: var(--gold); margin-top: .5vh; }
+  .when { text-align: center; }
+  #clock { font-weight: 600; font-size: clamp(36px, min(4.2vw, 7.4vh), 96px); line-height: 1; font-variant-numeric: tabular-nums; }
+  #clock small, #nclock small { font-size: .42em; margin-left: .2em; letter-spacing: .05em; }
+  .dates { font-size: clamp(13px, min(1.2vw, 2.2vh), 30px); color: var(--ink); margin-top: .5vh; white-space: nowrap; }
+  .dates .dot { color: var(--gold); margin: 0 .6em; }
+  .heb { font-family: "Frank Ruhl Libre", "David", serif; font-weight: 500; }
+  .wx { justify-self: end; display: flex; align-items: center; gap: 1vw; text-align: left; }
+  #wxIcon { font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; font-size: clamp(30px, min(3.4vw, 6vh), 80px); line-height: 1; }
+  #wxTemp { font-weight: 600; font-size: clamp(26px, min(2.8vw, 5vh), 66px); line-height: 1; }
+  #wxText, #wxNext { font-size: clamp(12px, min(1.05vw, 1.9vh), 26px); color: var(--ink); white-space: nowrap; }
+  #wxNext { color: #666; }
+
+  /* MIDDLE ROW: sign | card | sign */
+  .row { position: relative; z-index: 1; width: 100%; height: 76vh; display: flex; align-items: stretch; }
+
   /* The line under the headline switches between phrases. */
   .rotator { display: grid; place-items: center; }
   .rotator > span { grid-area: 1 / 1; opacity: 0; transform: translateY(.5em); transition: opacity .7s ease, transform .7s ease; white-space: nowrap; }
   .rotator > span.on { opacity: 1; transform: none; transition-delay: .6s; }   /* the old line fades out first */
-  /* Confetti layer over everything; clicks pass through. */
-  #confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 10; }
-  /* Direction signs in the marble space on each side of the card. */
+  /* Confetti layer over everything; clicks pass through. It fades away when the Mazal Tov slide is not showing. */
+  #confetti { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 10; transition: opacity .8s ease; }
+  /* Direction signs in the space on each side of the card. */
   .way {
-    position: relative; z-index: 1;
-    flex: 1; align-self: stretch;
+    flex: 1;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: clamp(6px, 1.2vh, 20px);
     color: var(--green);
   }
   .way svg { width: clamp(44px, 5.2vw, 110px); height: auto; }
-  .way .places { display: flex; flex-direction: column; align-items: center; gap: clamp(2px, .5vh, 10px); }
+  .way .places { display: flex; flex-direction: column; align-items: center; gap: clamp(2px, .5vh, 10px); text-align: center; }
   .way .place {
     font-family: "Source Sans 3", Arial, sans-serif;
     font-weight: 600;
@@ -71,16 +104,15 @@
     line-height: 1.1;
   }
   .card {
-    position: relative; z-index: 1; overflow: hidden; isolation: isolate;
+    position: relative; overflow: hidden; isolation: isolate;
     flex: none;
-    width: min(78vw, 140vh);
-    height: 84vh;
+    width: var(--box);
     background: #fff;
     border-radius: clamp(16px, 1.6vw, 36px);
     box-shadow: 0 2vw 5vw rgba(40, 40, 40, .12), 0 .3vw .8vw rgba(40, 40, 40, .06);
     border-top: clamp(4px, .45vw, 10px) solid var(--gold-light);
-    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-    padding: clamp(24px, 3.2vh, 60px) clamp(24px, 4vw, 90px) clamp(28px, 5vh, 90px);
+    display: flex; flex-direction: column; align-items: center;
+    padding: clamp(20px, 3vh, 56px) clamp(24px, 4vw, 90px) clamp(24px, 4.4vh, 80px);
     text-align: center;
   }
   /* INSIDE THE CARD: a few clear colors at a time (red, yellow, blue, green, ...) moving and changing fast,
@@ -101,8 +133,27 @@
     100% { transform: translate(-8%, 7%) rotate(140deg) scale(1); }
   }
   @keyframes cardcolors { to { filter: hue-rotate(360deg); } }
-  .logo { height: clamp(90px, 20vh, 260px); width: auto; display: block; mix-blend-mode: multiply; }
-  .middle { display: flex; flex-direction: column; align-items: center; gap: clamp(8px, 1.6vh, 28px); }
+  .logo { height: clamp(80px, 17vh, 230px); width: auto; display: block; flex: none; mix-blend-mode: multiply; }
+
+  /* QR code in the card's top-right corner (only when a link is set). */
+  .qr {
+    position: absolute; top: clamp(14px, 2.6vh, 48px); right: clamp(14px, 2vw, 48px);
+    width: clamp(96px, 15vh, 210px);
+    display: flex; flex-direction: column; align-items: center; gap: .6vh;
+  }
+  .qr canvas { width: 100%; height: auto; display: block; background: #fff; border-radius: clamp(6px, .6vw, 14px); box-shadow: 0 .3vw 1vw rgba(40, 40, 40, .12); image-rendering: pixelated; }
+  .qr div { font-weight: 600; font-size: clamp(11px, min(.85vw, 1.6vh), 22px); letter-spacing: .08em; color: var(--green); line-height: 1.15; }
+
+  /* SLIDES: they take turns in the card, fading one into the next. */
+  .stage { position: relative; flex: 1; width: 100%; }
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    opacity: 0; transform: scale(.985); transition: opacity .9s ease, transform .9s ease;
+  }
+  .slide.on { opacity: 1; transform: none; transition-delay: .5s; }   /* the old slide fades out first */
+  .slide.now { transition: none; }
+  .middle { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(8px, 1.6vh, 28px); }
   .headline {
     font-family: "Frank Ruhl Libre", "David", serif;
     font-weight: 700;
@@ -110,6 +161,7 @@
     line-height: 1;
     color: var(--green);
   }
+  .headline.sm { font-size: clamp(48px, min(6.6vw, 12vh), 160px); line-height: 1.05; }
   .label {
     font-family: "Source Sans 3", Arial, sans-serif;
     font-weight: 600;
@@ -121,56 +173,82 @@
   }
   .rule { width: clamp(80px, 12vw, 260px); height: 2px; background: linear-gradient(90deg, transparent, var(--gold-light), transparent); }
   .bottom {
+    flex: none;
     font-size: clamp(20px, min(2.7vw, 4.8vh), 64px);
     font-weight: 400;
     color: var(--ink);
   }
   .bottom strong { color: var(--green); font-weight: 600; }
+  .names { display: flex; flex-direction: column; align-items: center; gap: .6vh; }
+  .names span { font-family: "Frank Ruhl Libre", serif; font-weight: 500; font-size: clamp(28px, min(3.8vw, 6.8vh), 92px); line-height: 1.15; color: var(--ink); }
+  .names.many span { font-size: clamp(20px, min(2.6vw, 4.6vh), 62px); }
+  .msg { max-width: 88%; font-size: clamp(22px, min(2.7vw, 4.8vh), 64px); line-height: 1.3; white-space: pre-line; color: var(--ink); }
+  .tiles { display: flex; flex-wrap: wrap; justify-content: center; gap: 4vh 3vw; width: 100%; }
+  .tile { flex: 0 0 28%; display: flex; flex-direction: column; align-items: center; gap: .6vh; }
+  .num { font-family: "Frank Ruhl Libre", serif; font-weight: 700; font-size: clamp(40px, min(5.6vw, 10vh), 132px); line-height: 1; color: var(--green); font-variant-numeric: tabular-nums; }
+  .what { font-weight: 600; font-size: clamp(14px, min(1.4vw, 2.5vh), 34px); color: #555; }
+
+  /* NIGHT: outside office hours the screen goes dark - just a dim clock that moves a little every minute
+     (so nothing burns into the TV), no colors, no confetti. */
+  body.night { background: #070a09; }
+  body.night::before, body.night::after, body.night .topbar, body.night .row, body.night #confetti { display: none; }
+  #night { position: fixed; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; background: #070a09; color: rgba(255, 255, 255, .45); text-align: center; }
+  #night .nbox { transition: transform 2s ease; }
+  #nclock { font-weight: 400; font-size: clamp(60px, 20vh, 300px); line-height: 1; font-variant-numeric: tabular-nums; }
+  #ndate { font-size: clamp(16px, 3.4vh, 48px); margin-top: 2vh; }
+  #nhdate { font-size: clamp(16px, 3.4vh, 48px); margin-top: 1vh; }
 </style>
 </head>
 <body>
-  <!-- LEFT SIGN: arrow points left. EDIT the place names below (one per line). -->
-  <aside class="way" aria-label="To the left">
-    <svg viewBox="0 0 100 60" aria-hidden="true"><path d="M96 30H14M36 6 10 30l26 24" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <div class="places">
-      <span class="place">Food</span>
-      <span class="place">Restrooms</span>
+  <header class="topbar">
+    <div class="greet">
+      <div id="greeting">Welcome</div>
+      <div class="welcome">Welcome to RM Support</div>
     </div>
-  </aside>
-
-  <main class="card">
-    <img class="logo" src="logo.jpg" alt="RM Support">
-
-    <!-- EDIT BELOW: change only the text between the tags. Save, commit and push; the TV picks it up within a minute. -->
-    <div class="middle">
-      <h1 class="headline" lang="he" dir="rtl">מזל טוב</h1>
-      <!-- The gold line switches between these every few seconds; add, remove or change lines freely. -->
-      <div class="label rotator">
-        <span class="on">Mazal Tov</span>
-        <span>Congratulations</span>
-        <span>¡Felicidades!</span>
+    <div class="when">
+      <div id="clock"></div>
+      <div class="dates"><span id="date"></span><span class="dot">·</span><span id="hdate" class="heb" lang="he" dir="rtl"></span></div>
+    </div>
+    <div class="wx" id="wx" hidden>
+      <div id="wxIcon"></div>
+      <div>
+        <div id="wxTemp"></div>
+        <div id="wxText"></div>
+        <div id="wxNext"></div>
       </div>
-      <div class="rule" aria-hidden="true"></div>
     </div>
-    <p class="bottom">The program is renewed till <strong>October 2027</strong></p>
-    <!-- EDIT ABOVE -->
-  </main>
+  </header>
 
-  <!-- RIGHT SIGN: arrow points right. EDIT the place name below. -->
-  <aside class="way" aria-label="To the right">
-    <svg viewBox="0 0 100 60" aria-hidden="true"><path d="M4 30h82M64 6l26 24-26 24" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <div class="places">
-      <span class="place">HR</span>
-    </div>
-  </aside>
+  <div class="row">
+    <!-- LEFT SIGN: arrow points left (names come from config.json "signs") -->
+    <aside class="way" id="signLeft" aria-label="To the left">
+      <svg viewBox="0 0 100 60" aria-hidden="true"><path d="M96 30H14M36 6 10 30l26 24" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="places"></div>
+    </aside>
 
-  <!-- Confetti: a gentle rain the whole time, and every 3 seconds one party popper from a different angle. -->
-  <canvas id="confetti" aria-hidden="true"></canvas>
+    <main class="card">
+      <img class="logo" src="logo.jpg" alt="RM Support">
+      <div class="qr" id="qr" hidden><canvas width="1" height="1"></canvas><div></div></div>
+      <div class="stage" id="stage"></div>
+    </main>
+
+    <!-- RIGHT SIGN: arrow points right -->
+    <aside class="way" id="signRight" aria-label="To the right">
+      <svg viewBox="0 0 100 60" aria-hidden="true"><path d="M4 30h82M64 6l26 24-26 24" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="places"></div>
+    </aside>
+  </div>
+
+  <div id="night" hidden><div class="nbox"><div id="nclock"></div><div id="ndate"></div><div id="nhdate" class="heb" lang="he" dir="rtl"></div></div></div>
+
+  <!-- Confetti, ONLY while the Mazal Tov slide shows (David 10-21): a gentle rain, and every 3 seconds one party
+       popper from a different angle. -->
+  <canvas id="confetti" aria-hidden="true" style="opacity:0"></canvas>
   <script>
   (() => {
     const cv = document.getElementById("confetti"), ctx = cv.getContext("2d");
     const COLORS = ["#0f4537", "#e8ec16", "#d9b56a", "#b8892d", "#1f8a70", "#ef6f6c", "#5b8def"];
-    let W = 0, H = 0, dpr = 1, bits = [];
+    let W = 0, H = 0, dpr = 1, bits = [], active = false, popTimer = 0;
     function size() {
       dpr = Math.min(window.devicePixelRatio || 1, 2);
       W = innerWidth; H = innerHeight;
@@ -212,12 +290,13 @@
     };
     let last = "";
     function burst() {
+      if (!active) return;
       if (bits.length < 1800) {                   // keep it light on the office PC
         const names = Object.keys(SPOTS).filter((k) => k !== last);
         last = names[(Math.random() * names.length) | 0];
         SPOTS[last]();
       }
-      setTimeout(burst, 3000);
+      popTimer = setTimeout(burst, 3000);
     }
     // ...and a gentle confetti rain the whole time.
     const RAIN_PER_SEC = 18;
@@ -230,6 +309,8 @@
       }
     }
     function frame() {
+      requestAnimationFrame(frame);
+      if (!active && !bits.length) return;        // nothing to draw: leave the PC alone
       ctx.clearRect(0, 0, W, H);
       tick++;
       if (waiting.length) {                       // release the popper pieces whose moment has come
@@ -237,7 +318,7 @@
         for (const w of now) bits.push(w.p);
         if (now.length) waiting = waiting.filter((w) => w.at > tick);
       }
-      rain();
+      if (active) rain();
       const g = Math.max(W, H) / 1000 * 0.32;    // gravity
       for (const b of bits) {
         b.vy += g; b.vx *= b.drag; b.vy *= b.drag;
@@ -255,28 +336,361 @@
         ctx.restore();
       }
       bits = bits.filter((b) => b.life > 0 && b.y < H + 40);
-      requestAnimationFrame(frame);
     }
+    // The slides switch it on and off. Off = the whole layer fades out, then it is emptied.
+    window.setConfetti = (on) => {
+      if (on === active) return;
+      active = on;
+      clearTimeout(popTimer);
+      if (on) {
+        bits = []; waiting = [];
+        cv.style.opacity = "1";
+        popTimer = setTimeout(burst, 400);
+      } else {
+        cv.style.opacity = "0";
+        setTimeout(() => { if (!active) { bits = []; waiting = []; ctx.clearRect(0, 0, W, H); } }, 900);
+      }
+    };
     size(); addEventListener("resize", size);
     requestAnimationFrame(frame);
-    (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(() => setTimeout(burst, 400));
   })();
   </script>
 
-  <!-- Switch the line under the headline every 3.5 seconds. -->
+  <!-- QR code drawing (only used when config.json has a QR link). -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" integrity="sha512-ZDSPMa/JM1D+7kdg2x3BsruQ6T/JpJo3jWDWkCZsP+5yVyp1KfESqLI+7RqB5k24F7p2cV7i2YHh/890y6P6Sw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
   <script>
   (() => {
-    const lines = [...document.querySelectorAll(".rotator > span")];
-    let i = 0;
-    if (lines.length > 1) setInterval(() => {
-      lines[i].classList.remove("on");
-      i = (i + 1) % lines.length;
-      lines[i].classList.add("on");
+    const TZ = "America/New_York";
+    // Where the screen's content comes from. CareHub's admin page will feed it from CONFIG_URL; until that is live
+    // (and whenever it can't be reached) the screen reads config.json next to this page, and if even that fails,
+    // the built-in copy below.
+    const CONFIG_URL = "";
+    const DEFAULT = {
+      seconds: 20,
+      mazal: { show: true, headline: "מזל טוב", lines: ["Mazal Tov", "Congratulations", "¡Felicidades!"], bottom: "The program is renewed till", bottomStrong: "October 2027" },
+      slides: [], people: [], stats: [], qr: { label: "", link: "" },
+      signs: { left: ["Food", "Restrooms"], right: ["HR"] },
+      hours: { sun: ["08:00", "19:00"], mon: ["08:00", "19:00"], tue: ["08:00", "19:00"], wed: ["08:00", "19:00"], thu: ["08:00", "19:00"], fri: ["08:00", "14:00"], sat: null },
+    };
+    const $ = (id) => document.getElementById(id);
+    const el = (tag, cls, text, attrs) => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text != null) e.textContent = String(text);      // text only, never HTML
+      if (attrs) for (const k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    };
+    const list = (v) => (Array.isArray(v) ? v : []);
+
+    // ---------- New York time and the Hebrew date ----------
+    function ny(d = new Date()) {
+      const o = {};
+      for (const p of new Intl.DateTimeFormat("en-US", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(d)) o[p.type] = p.value;
+      return { ymd: `${o.year}-${o.month}-${o.day}`, month: +o.month, day: +o.day, dow: o.weekday.toLowerCase().slice(0, 3), hm: `${o.hour}:${o.minute}`, hour: +o.hour };
+    }
+    const HEB_EN = new Intl.DateTimeFormat("en-u-ca-hebrew", { timeZone: TZ, day: "numeric", month: "long", year: "numeric" });
+    const HEB_HE = new Intl.DateTimeFormat("he-u-ca-hebrew", { timeZone: TZ, month: "long" });
+    function heb(d) {
+      const o = {};
+      for (const p of HEB_EN.formatToParts(d)) o[p.type] = p.value;
+      return { day: +o.day, month: o.month, year: +o.year };
+    }
+    // Hebrew numerals: 10 -> י׳, 15 -> ט״ו, 5787 -> תשפ״ז
+    function gem(n) {
+      const L = [[400, "ת"], [300, "ש"], [200, "ר"], [100, "ק"], [90, "צ"], [80, "פ"], [70, "ע"], [60, "ס"], [50, "נ"], [40, "מ"], [30, "ל"], [20, "כ"], [10, "י"], [9, "ט"], [8, "ח"], [7, "ז"], [6, "ו"], [5, "ה"], [4, "ד"], [3, "ג"], [2, "ב"], [1, "א"]];
+      let s = "";
+      n %= 1000;
+      for (const [v, c] of L) {
+        while (n >= v) {
+          if (n === 15) { s += "טו"; n = 0; break; }
+          if (n === 16) { s += "טז"; n = 0; break; }
+          s += c; n -= v;
+        }
+      }
+      return s.length > 1 ? s.slice(0, -1) + "״" + s.slice(-1) : s + "׳";
+    }
+    function hebDate(d) {
+      const h = heb(d);
+      return `${gem(h.day)} ${HEB_HE.format(d)} ${gem(h.year)}`;
+    }
+
+    // ---------- Automatic greeting ----------
+    function holiday(now) {
+      const h = heb(now), m = h.month, d = h.day;
+      const within = (mm, dd, days) => {        // was it month mm, day dd at some point in the last `days` days?
+        for (let i = 0; i <= days; i++) { const p = heb(new Date(now.getTime() - i * 864e5)); if (p.month === mm && p.day === dd) return true; }
+        return false;
+      };
+      if (within("Kislev", 25, 7)) return "A Freilichen Chanukah!";
+      if ((m === "Adar" || m === "Adar II") && (d === 14 || d === 15)) return "A Freilichen Purim!";
+      if (m === "Elul" && d >= 15) return "Kesiva Vachasima Tova!";
+      if (m === "Tishri" && d <= 2) return "Shana Tova!";
+      if (m === "Tishri" && d <= 9) return "Gmar Chasima Tova!";
+      if (m === "Tishri" && d >= 14 && d <= 23) return "A Freilichen Yom Tov!";
+      if (m === "Nisan" && d <= 14) return "A Kosher un Freilichen Pesach!";
+      if (m === "Nisan" && d <= 22) return "Gut Yom Tov!";
+      if (m === "Sivan" && d <= 7) return "A Freilichen Shavuos!";
+      if (m === "Shevat" && d === 15) return "A Freilichen Tu B'Shvat!";
+      if (m === "Iyar" && d === 18) return "A Freilichen Lag BaOmer!";
+      return null;
+    }
+    function greeting(now, p) {
+      const hol = holiday(now);
+      if (hol) return hol;
+      if (p.dow === "fri") return "Good Shabbos!";
+      const h = heb(now);
+      if (h.day === 30 || (h.day === 1 && h.month !== "Tishri")) return "Chodesh Tov!";
+      return p.hour < 12 ? "Good morning" : p.hour < 17 ? "Good afternoon" : "Good evening";
+    }
+
+    // ---------- Clock (every second) ----------
+    const TIME = new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
+    const DATE = new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "long", month: "long", day: "numeric", year: "numeric" });
+    function setTime(box, now) {
+      const [hm, ampm] = TIME.format(now).split(/\s+/);
+      box.textContent = hm;
+      if (ampm) box.append(el("small", null, ampm));
+    }
+    let shownMinute = "";
+    function clock() {
+      const now = new Date(), p = ny(now);
+      if (p.hm === shownMinute) return;
+      shownMinute = p.hm;
+      setTime($("clock"), now); setTime($("nclock"), now);
+      $("date").textContent = $("ndate").textContent = DATE.format(now);
+      $("hdate").textContent = $("nhdate").textContent = hebDate(now);
+      $("greeting").textContent = greeting(now, p);
+      // night: nudge the dim clock to a new spot each minute so nothing burns into the TV
+      $("night").firstElementChild.style.transform = `translate(${(Math.random() * 12 - 6).toFixed(1)}vw, ${(Math.random() * 12 - 6).toFixed(1)}vh)`;
+      tickDay(p);
+    }
+
+    // ---------- Weather for Monroe, NY (US National Weather Service, free, no key) every 15 minutes ----------
+    const WX_HOURLY = "https://api.weather.gov/gridpoints/OKX/23,69/forecast/hourly";
+    const WX_DAYS = "https://api.weather.gov/gridpoints/OKX/23,69/forecast";
+    let wxAt = 0;
+    function wxIcon(t, day) {
+      t = String(t).toLowerCase();
+      if (/thunder|t-storm/.test(t)) return "⛈️";
+      if (/snow|flurr|sleet|ice|wintry/.test(t)) return "🌨️";
+      if (/rain|shower|drizzle/.test(t)) return /chance|slight|scattered|isolated/.test(t) ? "🌦️" : "🌧️";
+      if (/fog|haze|smoke|mist/.test(t)) return "🌫️";
+      if (/mostly cloudy|overcast|^cloudy/.test(t)) return "☁️";
+      if (/partly|mostly sunny|mostly clear/.test(t)) return day ? "⛅" : "🌙";
+      if (/wind|breezy|blustery/.test(t)) return "💨";
+      return day ? "☀️" : "🌙";
+    }
+    async function weather() {
+      try {
+        const get = (u) => fetch(u, { cache: "no-store" }).then((r) => (r.ok ? r.json() : Promise.reject(r.status)));
+        const [hourly, days] = await Promise.all([get(WX_HOURLY), get(WX_DAYS)]);
+        const now = Date.now();
+        const hp = hourly.properties.periods, dp = days.properties.periods;
+        const cur = hp.find((x) => new Date(x.endTime).getTime() > now) || hp[0];
+        $("wxIcon").textContent = wxIcon(cur.shortForecast, cur.isDaytime);
+        $("wxTemp").textContent = `${cur.temperature}°${cur.temperatureUnit || "F"}`;
+        $("wxText").textContent = `${cur.shortForecast} · Monroe, NY`;
+        $("wxNext").textContent = dp.slice(0, 2).map((x) => `${x.name} ${x.temperature}°`).join("  ·  ");
+        $("wx").hidden = false;
+        wxAt = now;
+      } catch {
+        if (Date.now() - wxAt > 3 * 3600e3) $("wx").hidden = true;   // keep the last good weather up to 3 hours
+      }
+    }
+
+    // ---------- Content: signs, QR, slides ----------
+    let cfg = DEFAULT, cfgText = "", dayKey = "";
+    function signs() {
+      for (const [id, names] of [["signLeft", list(cfg.signs && cfg.signs.left)], ["signRight", list(cfg.signs && cfg.signs.right)]]) {
+        const side = $(id), box = side.querySelector(".places");
+        box.textContent = "";
+        for (const n of names) if (String(n).trim()) box.append(el("span", "place", n));
+        side.style.visibility = box.children.length ? "" : "hidden";
+      }
+    }
+    function qr() {
+      const box = $("qr"), link = cfg.qr && String(cfg.qr.link || "").trim();
+      if (!link || typeof qrcode !== "function") { box.hidden = true; return; }
+      try {
+        if (qrcode.stringToBytesFuncs && qrcode.stringToBytesFuncs["UTF-8"]) qrcode.stringToBytes = qrcode.stringToBytesFuncs["UTF-8"];
+        const q = qrcode(0, "M"); q.addData(link); q.make();
+        const n = q.getModuleCount(), cell = 10, pad = 3, cv = box.querySelector("canvas"), c = cv.getContext("2d");
+        cv.width = cv.height = (n + pad * 2) * cell;
+        c.fillStyle = "#fff"; c.fillRect(0, 0, cv.width, cv.height);
+        c.fillStyle = "#0f4537";
+        for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (q.isDark(r, k)) c.fillRect((k + pad) * cell, (r + pad) * cell, cell, cell);
+        box.querySelector("div").textContent = (cfg.qr.label || "").trim();
+        box.hidden = false;
+      } catch { box.hidden = true; }
+    }
+    function mazalSlide(m) {
+      const s = el("section", "slide"); s.dataset.kind = "mazal";
+      const mid = el("div", "middle");
+      mid.append(el("h1", "headline", m.headline || "מזל טוב", { dir: "auto" }));
+      const lines = list(m.lines).filter((x) => String(x).trim());
+      if (lines.length) {
+        const rot = el("div", "label rotator");
+        lines.forEach((t, i) => rot.append(el("span", i ? null : "on", t)));
+        mid.append(rot);
+      }
+      mid.append(el("div", "rule", null, { "aria-hidden": "true" }));
+      s.append(mid);
+      if (m.bottom || m.bottomStrong) {
+        const b = el("p", "bottom", m.bottom ? m.bottom + " " : "");
+        if (m.bottomStrong) b.append(el("strong", null, m.bottomStrong));
+        s.append(b);
+      }
+      return s;
+    }
+    function peopleSlide(kind, who) {
+      const s = el("section", "slide"); s.dataset.kind = kind;
+      const mid = el("div", "middle");
+      mid.append(el("div", "label", "Today we celebrate"));
+      mid.append(el("h1", "headline sm", kind === "birthday" ? "Happy Birthday!" : "Happy Work Anniversary!"));
+      mid.append(el("div", "rule", null, { "aria-hidden": "true" }));
+      const names = el("div", who.length > 4 ? "names many" : "names");
+      for (const w of who) {
+        const y = +w.years;
+        names.append(el("span", null, kind === "anniversary" && y > 0 ? `${w.name} · ${y} year${y === 1 ? "" : "s"}` : w.name));
+      }
+      mid.append(names);
+      s.append(mid);
+      return s;
+    }
+    function messageSlide(m) {
+      const s = el("section", "slide"); s.dataset.kind = "message";
+      const mid = el("div", "middle");
+      if (m.title) mid.append(el("h1", "headline sm", m.title, { dir: "auto" }));
+      if (m.title && m.text) mid.append(el("div", "rule", null, { "aria-hidden": "true" }));
+      if (m.text) mid.append(el("p", "msg", m.text, { dir: "auto" }));
+      s.append(mid);
+      return s;
+    }
+    function statsSlide(stats) {
+      const s = el("section", "slide"); s.dataset.kind = "stats";
+      const mid = el("div", "middle");
+      mid.append(el("div", "label", "RM Support by the numbers"));
+      const tiles = el("div", "tiles");
+      for (const x of stats) {
+        const t = el("div", "tile");
+        const n = el("div", "num", "0"); n.dataset.v = String(Math.round(+x.value));
+        t.append(n, el("div", "what", x.label));
+        tiles.append(t);
+      }
+      mid.append(tiles);
+      s.append(mid);
+      return s;
+    }
+    function countUp(s) {                        // numbers roll up from 0 each time the slide comes on
+      for (const n of s.querySelectorAll(".num")) {
+        const end = +n.dataset.v, t0 = Date.now();
+        clearInterval(n._t);
+        n.textContent = "0";
+        n._t = setInterval(() => {
+          const k = Math.min(1, (Date.now() - 500 - t0) / 1600);
+          if (k <= 0) return;
+          n.textContent = Math.round(end * (1 - Math.pow(1 - k, 3))).toLocaleString("en-US");
+          if (k >= 1) clearInterval(n._t);
+        }, 40);
+      }
+    }
+
+    let slides = [], cur = -1, slideTimer = 0, night = false;
+    function build(p) {
+      const stage = $("stage");
+      stage.textContent = "";
+      slides = [];
+      if (cfg.mazal && cfg.mazal.show !== false) slides.push(mazalSlide(cfg.mazal));
+      for (const kind of ["birthday", "anniversary"]) {
+        const who = list(cfg.people).filter((x) => x && x.name && x.kind === kind && +x.month === p.month && +x.day === p.day);
+        if (who.length) slides.push(peopleSlide(kind, who));
+      }
+      for (const m of list(cfg.slides)) {
+        if (m && (m.title || m.text) && (!m.from || m.from <= p.ymd) && (!m.to || p.ymd <= m.to)) slides.push(messageSlide(m));
+      }
+      const stats = list(cfg.stats).filter((x) => x && x.label && Number.isFinite(+x.value));
+      if (stats.length) slides.push(statsSlide(stats));
+      if (!slides.length) slides.push(messageSlide({ title: "Welcome to RM Support" }));
+      for (const s of slides) stage.append(s);
+      cur = -1;
+      rotate(true);
+    }
+    function show(i, now) {
+      slides.forEach((s, j) => { s.classList.toggle("now", !!now); s.classList.toggle("on", j === i); });
+      cur = i;
+      const s = slides[i];
+      window.setConfetti(!!s && s.dataset.kind === "mazal" && !night);
+      if (s && s.dataset.kind === "stats") countUp(s);
+      if (now) { void $("stage").offsetWidth; setTimeout(() => slides.forEach((x) => x.classList.remove("now")), 50); }
+    }
+    function rotate(first) {
+      clearInterval(slideTimer);
+      if (night) { window.setConfetti(false); return; }
+      show(cur < 0 || cur >= slides.length ? 0 : cur, first);
+      const sec = Math.max(5, +cfg.seconds || 20);
+      if (slides.length > 1) slideTimer = setInterval(() => show((cur + 1) % slides.length), sec * 1000);
+    }
+    // the gold line under the Mazal Tov headline switches every 3.5 seconds
+    setInterval(() => {
+      for (const rot of document.querySelectorAll(".rotator")) {
+        const sp = [...rot.children]; if (sp.length < 2) continue;
+        const i = sp.findIndex((x) => x.classList.contains("on"));
+        sp.forEach((x) => x.classList.remove("on"));
+        sp[(i + 1) % sp.length].classList.add("on");
+      }
     }, 3500);
+
+    // ---------- Office hours -> day / night ----------
+    function open(p) {
+      const hours = cfg.hours;
+      if (!hours || typeof hours !== "object") return true;
+      const h = hours[p.dow];
+      return Array.isArray(h) && h.length === 2 && p.hm >= h[0] && p.hm < h[1];
+    }
+    function tickDay(p) {
+      const isNight = !open(p);
+      if (isNight !== night) {
+        night = isNight;
+        document.body.classList.toggle("night", night);
+        $("night").hidden = !night;
+        rotate(true);
+      }
+      if (p.ymd !== dayKey) { dayKey = p.ymd; build(p); }   // new day: birthdays, dated messages
+    }
+
+    // ---------- Load content now, then every 2 minutes (changes show without reloading) ----------
+    async function load() {
+      for (const u of [CONFIG_URL, "config.json"]) {
+        if (!u) continue;
+        try {
+          const r = await fetch(u + (u.includes("?") ? "&" : "?") + "v=" + Date.now(), { cache: "no-store" });
+          if (!r.ok) continue;
+          const j = await r.json();
+          if (j && typeof j === "object" && !Array.isArray(j)) return j;
+        } catch {}
+      }
+      return null;
+    }
+    function apply(j) {
+      const text = JSON.stringify(j);
+      if (text === cfgText) return;
+      cfgText = text;
+      cfg = Object.assign({}, DEFAULT, j);
+      signs(); qr();
+      shownMinute = ""; dayKey = "";             // redo the day check and the slides with the new content
+      clock();
+    }
+    apply(DEFAULT);
+    setInterval(clock, 1000);
+    load().then((j) => j && apply(j));
+    setInterval(() => load().then((j) => j && apply(j)), 120000);
+    weather();
+    setInterval(weather, 15 * 60000);
   })();
   </script>
 
-  <!-- Picks up edits without anyone touching the TV: every 60 seconds it checks the published page and reloads
+  <!-- Picks up a new LOOK without anyone touching the TV: every 60 seconds it checks the published page and reloads
        ONLY if the page changed, so the colors and confetti never jump. (Plus a fresh start every 6 hours.) -->
   <script>
   (() => {

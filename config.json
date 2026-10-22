@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "source": "local",
+  "seconds": 20,
+  "mazal": {
+    "show": true,
+    "headline": "מזל טוב",
+    "lines": ["Mazal Tov", "Congratulations", "¡Felicidades!"],
+    "bottom": "The program is renewed till",
+    "bottomStrong": "October 2027"
+  },
+  "slides": [],
+  "people": [],
+  "qr": { "label": "", "link": "" },
+  "signs": { "left": ["Food", "Restrooms"], "right": ["HR"] },
+  "hours": {
+    "sun": ["08:00", "19:00"],
+    "mon": ["08:00", "19:00"],
+    "tue": ["08:00", "19:00"],
+    "wed": ["08:00", "19:00"],
+    "thu": ["08:00", "19:00"],
+    "fri": ["08:00", "14:00"],
+    "sat": null
+  },
+  "stats": []
+}
