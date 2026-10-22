@@ -815,6 +815,17 @@
       s.append(mid);
       return s;
     }
+    function thanksSlide(t) {                    // the thank-you wall (sent by staff, approved by an admin in CareHub)
+      const s = el("section", "slide"); s.dataset.kind = "thanks";
+      const mid = el("div", "middle");
+      mid.append(el("div", "label", "Thank-you wall 💛"));
+      mid.append(el("h1", "headline sm", `Thank you, ${t.to}!`, { dir: "auto" }));
+      mid.append(el("div", "rule", null, { "aria-hidden": "true" }));
+      if (t.text) mid.append(el("p", "msg", t.text, { dir: "auto" }));
+      if (t.from) mid.append(el("div", "what", `- ${t.from}`, { dir: "auto" }));
+      s.append(mid);
+      return s;
+    }
     function goalSlide(g) {
       const s = el("section", "slide"); s.dataset.kind = "goal";
       const mid = el("div", "middle");
@@ -830,6 +841,7 @@
         const who = `${g.each} each · ${g.people} ${g.people === 1 ? "person" : "people"} · ${g.reached || 0} reached ${g.each} ✓`;
         mid.append(el("div", "what", who));
       }
+      if (g.streak >= 2) mid.append(el("div", "goalpct", `🔥 ${g.streak} days in a row the team reached the goal`));
       s.append(mid);
       return s;
     }
@@ -918,6 +930,7 @@
       const welcome = list(cfg.welcome).filter((n) => typeof n === "string" && n.trim());
       if (welcome.length) slides.push(welcomeSlide(welcome));
       for (const x of list(cfg.shoutouts)) if (x && x.name) slides.push(shoutSlide(x));
+      for (const t of list(cfg.thanks)) if (t && t.to && t.text) slides.push(thanksSlide(t));
       for (const m of list(cfg.slides)) {
         if (m && (m.title || m.text) && (!m.from || m.from <= p.ymd) && (!m.to || p.ymd <= m.to)) slides.push(messageSlide(m));
       }
@@ -925,7 +938,7 @@
       const stats = list(cfg.stats).filter((x) => x && x.label && Number.isFinite(+x.value));
       if (stats.length) slides.push(statsSlide(stats));
       const g = cfg.goal;
-      if (g && Number.isFinite(+g.units) && +g.target > 0) slides.push(goalSlide({ units: +g.units, target: +g.target, each: +g.each || 0, people: +g.people || 0, reached: +g.reached || 0 }));
+      if (g && Number.isFinite(+g.units) && +g.target > 0) slides.push(goalSlide({ units: +g.units, target: +g.target, each: +g.each || 0, people: +g.people || 0, reached: +g.reached || 0, streak: +g.streak || 0 }));
       for (const ph of list(cfg.photos)) if (ph && /^[0-9a-f-]{36}$/.test(ph.id)) slides.push(photoSlide(ph));
       if (cfg.forecast !== false && forecast.length) slides.push(weatherSlide());
       if (!slides.length) slides.push(messageSlide({ title: "Welcome to RM Support" }));
@@ -938,7 +951,7 @@
       const s = slides[cur];
       window.setConfetti(!!s && s.dataset.kind === "mazal" && !night && !minchaOn && !annOn && !lrOn);
     };
-    const HAPPY = new Set(["mazal", "birthday", "anniversary", "welcome", "shoutout"]);
+    const HAPPY = new Set(["mazal", "birthday", "anniversary", "welcome", "shoutout", "thanks"]);
     function show(i, now) {
       slides.forEach((s, j) => { s.classList.toggle("now", !!now); s.classList.toggle("on", j === i); });
       cur = i;
