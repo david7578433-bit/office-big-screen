@@ -477,6 +477,7 @@
       signs: { left: ["Food", "Restrooms"], right: ["HR"] },
       mincha: { show: true, time: "15:45", before: 15, after: 15 },
       zmanim: true, candles: 15, forecast: true,
+      music: { show: true, channel: 11, from: "09:30", to: "19:00", volume: 40, seasons: true, quiet: true },
       hours: { sun: ["08:00", "22:00"], mon: ["08:00", "22:00"], tue: ["08:00", "22:00"], wed: ["08:00", "22:00"], thu: ["08:00", "22:00"], fri: ["08:00", "sunset-120"], sat: null },
     };
     const $ = (id) => document.getElementById(id);
@@ -1093,6 +1094,53 @@
     }
     addEventListener("pointerdown", () => { try { audio = audio || new AudioContext(); audio.resume(); } catch {} }, { once: true });
 
+    // ---------- Music (David 10-22: Yiddish24, every day 9:30 to 7:00) ----------
+    // Yiddish24's 24-hour Jewish music channels (https://www.yiddish24.com/streams; music.y24.app/<channel>, plain MP3
+    // streams that pass the office filter). Plays only while the screen is on and inside the music hours; silent under
+    // the Mincha / announcement / story screens; the Yom Tov collection on Yom Tov and the Shabbos collection on Friday
+    // (seasons); silent during Sefira (Lag BaOmer plays) and the Three Weeks (quiet). Like the Mincha bell, Chrome
+    // plays sound only if the TV allows it (--autoplay-policy=no-user-gesture-required, or one tap on the screen).
+    const music = new Audio();
+    music.preload = "none";
+    let musicCh = 0, musicWanted = false, musicRetry = 0;
+    function seasonChannel(now, p) {
+      const h = heb(now), m = h.month, d = h.day;
+      for (let i = 0; i <= 7; i++) { const x = heb(new Date(now.getTime() - i * 864e5)); if (x.month === "Kislev" && x.day === 25) return 4; }   // Chanukah
+      if (m === "Elul" || (m === "Tishri" && d <= 10)) return 16;           // ימים נוראים
+      if (m === "Tishri" && d >= 15 && d <= 23) return 17;                  // סוכות
+      if ((m === "Adar" || m === "Adar II") && (d === 14 || d === 15)) return 12;   // פורים
+      if (m === "Nisan" && d <= 15) return 13;                              // פסח
+      if (m === "Iyar" && d === 18) return 14;                              // ל"ג בעומר
+      if (m === "Sivan" && (d === 6 || d === 7)) return 19;                 // שבועות
+      if (p.dow === "fri") return 2;                                        // שבת קאלעקשאן
+      return 0;
+    }
+    function mourning(now) {                     // Sefira (not Lag BaOmer) and the Three Weeks
+      const h = heb(now), m = h.month, d = h.day;
+      return (m === "Nisan" && d >= 16) || (m === "Iyar" && d !== 18) || (m === "Sivan" && d <= 5) || (m === "Tamuz" && d >= 17) || (m === "Av" && d <= 10);
+    }
+    function musicTick() {
+      const M = cfg.music || {}, now = new Date(), p = ny(now);
+      const inHours = /^\d{2}:\d{2}$/.test(M.from || "") && /^\d{2}:\d{2}$/.test(M.to || "") && p.hm >= M.from && p.hm < M.to;
+      const on = M.show !== false && !night && inHours && !(M.quiet !== false && mourning(now));
+      const ch = (M.seasons !== false && seasonChannel(now, p)) || +M.channel || 11;
+      const muted = minchaOn || annOn || lrOn;
+      music.volume = muted ? 0 : Math.max(0, Math.min(1, (Number.isFinite(+M.volume) ? +M.volume : 40) / 100));
+      if (on && (!musicWanted || ch !== musicCh)) {
+        musicWanted = true; musicCh = ch;
+        music.src = `https://music.y24.app/${ch}`;
+        music.play().catch(() => {});            // blocked until the TV allows sound - the next ticks try again
+      } else if (on && music.paused && Date.now() > musicRetry) {
+        musicRetry = Date.now() + 15000;         // dropped or blocked: reconnect every 15 s
+        music.src = `https://music.y24.app/${musicCh}`;
+        music.play().catch(() => {});
+      } else if (!on && musicWanted) {
+        musicWanted = false; musicCh = 0;
+        music.pause(); music.removeAttribute("src"); music.load();   // stop the download too
+      }
+    }
+    addEventListener("pointerdown", () => { if (musicWanted) music.play().catch(() => {}); });
+
     // ---------- Announcement pop-up (from CareHub's "Show now"; checked every second, so it ends on time) ----------
     function announceTick() {
       const a = cfg.announce, box = $("announce");
@@ -1200,7 +1248,7 @@
       announceTick();
     }
     apply(DEFAULT);
-    setInterval(() => { clock(); announceTick(); reachedTick(ny()); }, 1000);
+    setInterval(() => { clock(); announceTick(); reachedTick(ny()); musicTick(); }, 1000);
     load().then((j) => j && apply(j));
     setInterval(() => load().then((j) => j && apply(j)), 20000);
     weather();
