@@ -1066,30 +1066,41 @@
       const on = !!t && !night && ((left > 0 && left <= before) || (left <= 0 && -left < after));
       when.textContent = on && left > 0 ? `אין ${left} מינוט` : "";
       when.hidden = !(on && left > 0);
+      // The bell (David 10-22): when the countdown starts, then every 5 minutes (3:30, 3:35, 3:40), and at Mincha
+      // itself (3:45) it rings for about 15 seconds. Once per minute, even if this runs twice in that minute.
+      const key = p.ymd + p.hm;
+      if (on && minchaRung !== key && (left > 0 ? left === before || left % 5 === 0 : left === 0)) {
+        minchaRung = key;
+        chime(left === 0 ? 15 : 0);
+      }
       if (on === minchaOn) return;
       minchaOn = on;
       box.hidden = !on;
       if (on) { const b = box.firstElementChild; b.style.animation = "none"; void b.offsetWidth; b.style.animation = ""; }
-      if (on && left > 0) chime();               // David 10-21: a sound when the Mincha pop-up comes up
       confetti();
     }
+    let minchaRung = "";
     // A soft three-note bell, made in the browser (no sound file). Chrome plays it only if the TV's browser allows
     // sound without a click: start it with --autoplay-policy=no-user-gesture-required, or tap the screen once.
     let audio = null;
-    function chime() {
+    // seconds > 0: the bell again and again for that long (the 3-note bell every 2.5 s)
+    function chime(seconds = 0) {
       try {
         audio = audio || new (window.AudioContext || window.webkitAudioContext)();
         if (audio.state === "suspended") audio.resume();
-        const t0 = audio.currentTime + 0.05;
-        [784, 659, 523].forEach((hz, i) => {        // G5, E5, C5
-          const o = audio.createOscillator(), g = audio.createGain(), t = t0 + i * 0.55;
-          o.type = "sine"; o.frequency.value = hz;
-          g.gain.setValueAtTime(0.0001, t);
-          g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
-          g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
-          o.connect(g).connect(audio.destination);
-          o.start(t); o.stop(t + 1.7);
-        });
+        const rounds = seconds > 0 ? Math.max(1, Math.round(seconds / 2.5)) : 1;
+        for (let r = 0; r < rounds; r++) {
+          const t0 = audio.currentTime + 0.05 + r * 2.5;
+          [784, 659, 523].forEach((hz, i) => {      // G5, E5, C5
+            const o = audio.createOscillator(), g = audio.createGain(), t = t0 + i * 0.55;
+            o.type = "sine"; o.frequency.value = hz;
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+            o.connect(g).connect(audio.destination);
+            o.start(t); o.stop(t + 1.7);
+          });
+        }
       } catch {}
     }
     addEventListener("pointerdown", () => { try { audio = audio || new AudioContext(); audio.resume(); } catch {} }, { once: true });
