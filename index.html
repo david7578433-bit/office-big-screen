@@ -237,6 +237,21 @@
   #announce .alabel { font-weight: 600; font-size: clamp(16px, 3.4vh, 48px); letter-spacing: .4em; padding-left: .4em; text-transform: uppercase; color: var(--gold-light); }
   #announce .atext { font-family: "Frank Ruhl Libre", "David", serif; font-weight: 700; font-size: clamp(44px, min(6.4vw, 12vh), 170px); line-height: 1.15; color: #fff; margin-top: 3vh; white-space: pre-line; }
 
+  /* REACHED THE GOAL (David 10-21: "every member when he reaches 60 units it pops up on the screen"): a happy pop-up
+     with the name, once per person per day. */
+  #reached { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden;
+    background: linear-gradient(120deg, #0f4537, #1f8a70, #0f4537); }
+  #reached::before { content: ""; position: absolute; inset: -30%;
+    background: radial-gradient(circle at 25% 30%, rgba(255, 214, 10, .35), transparent 30%), radial-gradient(circle at 75% 70%, rgba(255, 82, 82, .3), transparent 30%), radial-gradient(circle at 70% 25%, rgba(56, 152, 255, .3), transparent 28%);
+    animation: drift 9s ease-in-out infinite alternate, cardcolors 14s linear infinite; }
+  #reached .rbox { position: relative; animation: popin .8s cubic-bezier(.2, 1.4, .4, 1) both; }
+  #reached .remoji { font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; font-size: clamp(60px, 16vh, 240px); line-height: 1; }
+  #reached .rname { font-family: "Frank Ruhl Libre", "David", serif; font-weight: 700; font-size: clamp(56px, min(8vw, 15vh), 220px); line-height: 1.1; color: #fff; margin-top: 2vh; }
+  #reached .rwhat { font-weight: 600; font-size: clamp(24px, min(3.4vw, 6.4vh), 92px); color: var(--gold-light); margin-top: 1.5vh; }
+  /* photo slides */
+  .photo { max-width: 100%; max-height: 50vh; border-radius: clamp(10px, 1vw, 24px); box-shadow: 0 1vw 3vw rgba(40, 40, 40, .18); object-fit: contain; background: #fff; }
+  .photocap { font-family: "Frank Ruhl Libre", serif; font-weight: 500; font-size: clamp(20px, min(2.4vw, 4.2vh), 58px); color: var(--ink); margin-top: 1.4vh; }
+
   /* OFFICE CLOSED notice: a ribbon between the top bar and the card, a few days before a closed day. */
   .notice { position: relative; z-index: 1; width: var(--box); padding: 1vh 2vw; border-radius: clamp(10px, 1vw, 24px); background: var(--green); color: #fff; text-align: center; font-weight: 600; font-size: clamp(16px, min(1.6vw, 3vh), 40px); }
   .notice b { color: var(--gold-light); }
@@ -303,6 +318,8 @@
       <div class="places"></div>
     </aside>
   </div>
+
+  <div id="reached" hidden><div class="rbox"><div class="remoji">🎉</div><div class="rname" dir="auto"></div><div class="rwhat"></div></div></div>
 
   <div id="announce" hidden><div class="abox"><div class="alabel">Announcement</div><div class="atext" dir="auto"></div></div></div>
 
@@ -757,6 +774,31 @@
       fill.dataset.w = String(pct);
       bar.append(fill);
       mid.append(n, bar, el("div", "goalpct", done ? "Goal reached! 🎉" : `${pct}% - ${(g.target - g.units).toLocaleString("en-US")} to go`));
+      if (g.each && g.people) {
+        const who = `${g.each} each · ${g.people} ${g.people === 1 ? "person" : "people"} · ${g.reached || 0} reached ${g.each} ✓`;
+        mid.append(el("div", "what", who));
+      }
+      s.append(mid);
+      return s;
+    }
+    // Photos come from CareHub with the same key header as the feed (an <img> can't send headers), kept as blobs.
+    const PHOTO_URL = CONFIG_URL + "/photo";
+    const photoBlobs = new Map();
+    function photoSrc(id) {
+      if (!photoBlobs.has(id)) {
+        photoBlobs.set(id, fetch(`${PHOTO_URL}?id=${id}`, { headers: { "X-Screen-Key": decodeURIComponent(KEY) } })
+          .then((r) => (r.ok ? r.blob() : Promise.reject(r.status)))
+          .then((b) => URL.createObjectURL(b))
+          .catch(() => { photoBlobs.delete(id); return ""; }));
+      }
+      return photoBlobs.get(id);
+    }
+    function photoSlide(ph) {
+      const s = el("section", "slide"); s.dataset.kind = "photo";
+      const mid = el("div", "middle"), img = el("img", "photo", null, { alt: ph.caption || "Photo" });
+      photoSrc(ph.id).then((u) => { if (u) img.src = u; });
+      mid.append(img);
+      if (ph.caption) mid.append(el("div", "photocap", ph.caption, { dir: "auto" }));
       s.append(mid);
       return s;
     }
@@ -812,7 +854,8 @@
       const stats = list(cfg.stats).filter((x) => x && x.label && Number.isFinite(+x.value));
       if (stats.length) slides.push(statsSlide(stats));
       const g = cfg.goal;
-      if (g && Number.isFinite(+g.units) && +g.target > 0) slides.push(goalSlide({ units: +g.units, target: +g.target }));
+      if (g && Number.isFinite(+g.units) && +g.target > 0) slides.push(goalSlide({ units: +g.units, target: +g.target, each: +g.each || 0, people: +g.people || 0, reached: +g.reached || 0 }));
+      for (const ph of list(cfg.photos)) if (ph && /^[0-9a-f-]{36}$/.test(ph.id)) slides.push(photoSlide(ph));
       if (cfg.forecast !== false && forecast.length) slides.push(weatherSlide());
       if (!slides.length) slides.push(messageSlide({ title: "Welcome to RM Support" }));
       for (const s of slides) stage.append(s);
@@ -951,6 +994,33 @@
       confetti();
     }
 
+    // ---------- "Reached the goal" pop-up ----------
+    let rQueue = [], rOn = false, rUntil = 0, rDay = "";
+    const rSeen = new Set();
+    function reachedTick(p) {
+      if (p.ymd !== rDay) {                      // a new day: forget yesterday's names
+        rDay = p.ymd; rSeen.clear(); rQueue = [];
+        try { for (const n of JSON.parse(localStorage.getItem("reached:" + rDay) || "[]")) rSeen.add(n); } catch {}
+      }
+      const g = cfg.goal;
+      for (const n of list(g && g.names)) {
+        if (typeof n === "string" && n && !rSeen.has(n)) { rSeen.add(n); rQueue.push(n); }
+      }
+      try { localStorage.setItem("reached:" + rDay, JSON.stringify([...rSeen])); } catch {}
+      const box = $("reached");
+      if (rOn && Date.now() < rUntil) return;
+      const free = !night && !annOn && !minchaOn;
+      const next = free ? rQueue.shift() : null;
+      if (next) {
+        box.querySelector(".rname").textContent = next;
+        box.querySelector(".rwhat").textContent = `reached ${(g && g.each) || 60} units!`;
+        box.hidden = false; rOn = true; rUntil = Date.now() + 12_000;
+        const b = box.firstElementChild; b.style.animation = "none"; void b.offsetWidth; b.style.animation = "";
+      } else if (rOn) {
+        box.hidden = true; rOn = false;
+      }
+    }
+
     // ---------- Office closed notice (a ribbon over the card, from a few days before) ----------
     const LONGDAY = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", weekday: "long", month: "long", day: "numeric" });
     function notice(p) {
@@ -994,7 +1064,7 @@
       announceTick();
     }
     apply(DEFAULT);
-    setInterval(() => { clock(); announceTick(); }, 1000);
+    setInterval(() => { clock(); announceTick(); reachedTick(ny()); }, 1000);
     load().then((j) => j && apply(j));
     setInterval(() => load().then((j) => j && apply(j)), 20000);
     weather();
