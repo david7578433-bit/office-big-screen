@@ -72,6 +72,10 @@
   #clock small, #nclock small { font-size: .42em; margin-left: .2em; letter-spacing: .05em; }
   .dates { font-size: clamp(13px, min(1.2vw, 2.2vh), 30px); color: var(--ink); margin-top: .5vh; white-space: nowrap; }
   .dates .dot { color: var(--gold); margin: 0 .6em; }
+  /* zmanim line under the dates (David 10-21): netz, mincha gedola, shkiah - and on Friday candle lighting */
+  .zmanim { font-family: "Frank Ruhl Libre", "David", serif; font-weight: 500; font-size: clamp(12px, min(1.15vw, 2.1vh), 28px); color: var(--green); margin-top: .5vh; white-space: nowrap; }
+  .zmanim > span + span::before { content: "·"; color: var(--gold); margin: 0 .6em; }
+  .zmanim bdi { font-family: "Source Sans 3", Arial, sans-serif; font-weight: 600; }
   .heb { font-family: "Frank Ruhl Libre", "David", serif; font-weight: 500; }
   .wx { justify-self: end; display: flex; align-items: center; gap: 1vw; text-align: left; }
   #wxIcon { font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; font-size: clamp(30px, min(3.4vw, 6vh), 80px); line-height: 1; }
@@ -80,7 +84,7 @@
   #wxNext { color: #666; }
 
   /* MIDDLE ROW: sign | card | sign */
-  .row { position: relative; z-index: 1; width: 100%; height: 76vh; display: flex; align-items: stretch; }
+  .row { position: relative; z-index: 1; width: 100%; height: 74vh; display: flex; align-items: stretch; }
 
   /* The line under the headline switches between phrases. */
   .rotator { display: grid; place-items: center; }
@@ -190,6 +194,14 @@
   .tiles { display: flex; flex-wrap: wrap; justify-content: center; gap: 4vh 3vw; width: 100%; }
   .tile { flex: 0 0 28%; display: flex; flex-direction: column; align-items: center; gap: .6vh; }
   .num { font-family: "Frank Ruhl Libre", serif; font-weight: 700; font-size: clamp(40px, min(5.6vw, 10vh), 132px); line-height: 1; color: var(--green); font-variant-numeric: tabular-nums; }
+  /* 5-day weather slide */
+  .wxdays { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.6vw; width: 100%; margin-top: 2vh; }
+  .wxday { display: flex; flex-direction: column; align-items: center; gap: 1vh; padding: 2.4vh .8vw; background: rgba(255, 255, 255, .6); border-radius: clamp(10px, 1.1vw, 26px); }
+  .wxday .d { font-weight: 600; font-size: clamp(14px, min(1.6vw, 2.8vh), 38px); color: var(--green); }
+  .wxday .i { font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; font-size: clamp(36px, min(4.4vw, 7.8vh), 106px); line-height: 1; }
+  .wxday .t { font-family: "Frank Ruhl Libre", serif; font-weight: 700; font-size: clamp(20px, min(2.4vw, 4.2vh), 58px); color: var(--ink); line-height: 1; }
+  .wxday .t small { font-size: .7em; font-weight: 500; color: #777; }
+  .wxday .x { font-size: clamp(11px, min(1.05vw, 1.9vh), 25px); color: #555; text-align: center; line-height: 1.25; }
   .what { font-weight: 600; font-size: clamp(14px, min(1.4vw, 2.5vh), 34px); color: #555; }
 
   /* MINCHA (David 10-21): a big pop-up over everything - from 15 minutes before Mincha a countdown
@@ -215,11 +227,12 @@
   <header class="topbar">
     <div class="greet">
       <div id="greeting">Welcome</div>
-      <div class="welcome">Welcome to RM Support</div>
+      <div class="welcome" id="sub">Welcome to RM Support</div>
     </div>
     <div class="when">
       <div id="clock"></div>
       <div class="dates"><span id="date"></span><span class="dot">·</span><span id="hdate" class="heb" lang="he" dir="rtl"></span></div>
+      <div class="zmanim" id="zmanim" lang="he" dir="rtl"></div>
     </div>
     <div class="wx" id="wx" hidden>
       <div id="wxIcon"></div>
@@ -388,6 +401,7 @@
       slides: [], people: [], stats: [], qrs: [],
       signs: { left: ["Food", "Restrooms"], right: ["HR"] },
       mincha: { show: true, time: "15:45", before: 15, after: 15 },
+      zmanim: true, candles: 18, forecast: true,
       hours: { sun: ["08:00", "22:00"], mon: ["08:00", "22:00"], tue: ["08:00", "22:00"], wed: ["08:00", "22:00"], thu: ["08:00", "22:00"], fri: ["08:00", "sunset-120"], sat: null },
     };
     const $ = (id) => document.getElementById(id);
@@ -478,16 +492,60 @@
       $("date").textContent = $("ndate").textContent = DATE.format(now);
       $("hdate").textContent = $("nhdate").textContent = hebDate(now);
       $("greeting").textContent = greeting(now, p);
+      zmanim(now, p);
       // night: nudge the dim clock to a new spot each minute so nothing burns into the TV
       $("night").firstElementChild.style.transform = `translate(${(Math.random() * 12 - 6).toFixed(1)}vw, ${(Math.random() * 12 - 6).toFixed(1)}vh)`;
       tickDay(p);
       mincha(p);
     }
 
+    // ---------- Zmanim (Monroe, NY; GRA: a "shaah zmanis" = 1/12 of sunrise to sunset) + Friday candle lighting ----------
+    const HM = new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour: "numeric", minute: "2-digit" });
+    const hm12 = (d) => HM.format(d).split(/\s+/)[0];
+    const minute = (d, up) => new Date((up ? Math.ceil : Math.floor)(d.getTime() / 60000) * 60000);
+    function zmanim(now, p) {
+      const box = $("zmanim"), sub = $("sub");
+      const { rise, set } = sunTimes(p.ymd), shaah = (set - rise) / 12;
+      const items = [
+        ["נץ", minute(rise, true)],                                  // sunrise: rounded up
+        ["מנחה גדולה", minute(new Date(rise.getTime() + 6.5 * shaah), true)],
+        ["שקיעה", minute(set, false)],                               // sunset: rounded down
+      ];
+      const candles = Number.isFinite(+cfg.candles) ? +cfg.candles : 18;
+      const light = new Date(minute(set, false).getTime() - candles * 60000);
+      if (p.dow === "fri") items.push(["הדלקת נרות", light]);
+      box.textContent = "";
+      if (cfg.zmanim !== false) {
+        for (const [name, at] of items) {
+          const sp = el("span", null, name + " ");
+          sp.append(el("bdi", null, hm12(at), { dir: "ltr" }));
+          box.append(sp);
+        }
+      }
+      box.hidden = cfg.zmanim === false;
+      // Friday: candle-lighting time and how long until Shabbos, under the greeting
+      const left = Math.round((light - now) / 60000);
+      sub.textContent = p.dow === "fri" && left > 0
+        ? `Candle lighting ${hm12(light)} · Shabbos in ${left >= 60 ? Math.floor(left / 60) + " h " : ""}${left % 60} min`
+        : "Welcome to RM Support";
+    }
+
     // ---------- Weather for Monroe, NY (US National Weather Service, free, no key) every 15 minutes ----------
     const WX_HOURLY = "https://api.weather.gov/gridpoints/OKX/23,69/forecast/hourly";
     const WX_DAYS = "https://api.weather.gov/gridpoints/OKX/23,69/forecast";
-    let wxAt = 0;
+    let wxAt = 0, forecast = [];
+    // NWS periods (day / night pairs) -> up to 5 days: name, icon, high, low, words
+    const WEEKDAY = new Intl.DateTimeFormat("en-US", { timeZone: TZ, weekday: "long" });
+    function fiveDays(dp) {
+      const out = [], today = ny().ymd;
+      for (let i = 0; i < dp.length && out.length < 5; i++) {
+        const x = dp[i];
+        if (!x.isDaytime) continue;
+        const night = dp[i + 1] && !dp[i + 1].isDaytime ? dp[i + 1] : null, start = new Date(x.startTime);
+        out.push({ name: ny(start).ymd === today ? "Today" : WEEKDAY.format(start), icon: wxIcon(x.shortForecast, true), hi: x.temperature, lo: night ? night.temperature : null, text: x.shortForecast });
+      }
+      return out;
+    }
     function wxIcon(t, day) {
       t = String(t).toLowerCase();
       if (/thunder|t-storm/.test(t)) return "⛈️";
@@ -512,6 +570,10 @@
         $("wxNext").textContent = dp.slice(0, 2).map((x) => `${x.name} ${x.temperature}°`).join("  ·  ");
         $("wx").hidden = false;
         wxAt = now;
+        forecast = fiveDays(dp);
+        const ws = slides.find((x) => x.dataset.kind === "weather");
+        if (ws) fillWeather(ws);
+        else if (forecast.length && cfg.forecast !== false && !night) { dayKey = ""; shownMinute = ""; clock(); }   // first forecast: add its slide
       } catch {
         if (Date.now() - wxAt > 3 * 3600e3) $("wx").hidden = true;   // keep the last good weather up to 3 hours
       }
@@ -619,6 +681,24 @@
       s.append(mid);
       return s;
     }
+    function weatherSlide() {
+      const s = el("section", "slide"); s.dataset.kind = "weather";
+      const mid = el("div", "middle");
+      mid.append(el("div", "label", "5-day weather · Monroe, NY"), el("div", "wxdays"));
+      s.append(mid);
+      fillWeather(s);
+      return s;
+    }
+    function fillWeather(s) {
+      const box = s.querySelector(".wxdays");
+      box.textContent = "";
+      for (const d of forecast) {
+        const c = el("div", "wxday"), t = el("div", "t", `${d.hi}°`);
+        if (d.lo != null) t.append(el("small", null, ` / ${d.lo}°`));
+        c.append(el("div", "d", d.name), el("div", "i", d.icon), t, el("div", "x", d.text));
+        box.append(c);
+      }
+    }
     function countUp(s) {                        // numbers roll up from 0 each time the slide comes on
       for (const n of s.querySelectorAll(".num")) {
         const end = +n.dataset.v, t0 = Date.now();
@@ -648,6 +728,7 @@
       }
       const stats = list(cfg.stats).filter((x) => x && x.label && Number.isFinite(+x.value));
       if (stats.length) slides.push(statsSlide(stats));
+      if (cfg.forecast !== false && forecast.length) slides.push(weatherSlide());
       if (!slides.length) slides.push(messageSlide({ title: "Welcome to RM Support" }));
       for (const s of slides) stage.append(s);
       cur = -1;
@@ -678,22 +759,42 @@
       }
     }, 3500);
 
-    // ---------- Office hours -> day / night ----------
-    // Sunset in Monroe, NY on a given day (the standard NOAA sunrise/sunset formula), as "HH:MM" New York time.
-    function sunset(ymd) {
-      const [Y, M, D] = ymd.split("-").map(Number), lat = 41.3309, lng = -74.1868, rad = Math.PI / 180;
-      const N = Math.round((Date.UTC(Y, M - 1, D) - Date.UTC(Y, 0, 0)) / 864e5);
-      const t = N + (18 - lng / 15) / 24, Ms = 0.9856 * t - 3.289;
-      const L = (Ms + 1.916 * Math.sin(Ms * rad) + 0.02 * Math.sin(2 * Ms * rad) + 282.634 + 360) % 360;
-      let RA = (Math.atan(0.91764 * Math.tan(L * rad)) / rad + 360) % 360;
-      RA = (RA + Math.floor(L / 90) * 90 - Math.floor(RA / 90) * 90) / 15;
-      const sinDec = 0.39782 * Math.sin(L * rad), cosDec = Math.cos(Math.asin(sinDec));
-      const cosH = (Math.cos(90.833 * rad) - sinDec * Math.sin(lat * rad)) / (cosDec * Math.cos(lat * rad));
-      const H = Math.acos(cosH) / rad / 15;
-      let UT = (H + RA - 0.06571 * t - 6.622 - lng / 15 + 48) % 24;
-      if (UT < 12) UT += 24;                     // New York sunsets are after noon UTC; small values are the next UTC day
-      return ny(new Date(Date.UTC(Y, M - 1, D) + UT * 3600e3)).hm;
+    // ---------- Sun times for Monroe, NY (the NOAA solar calculator's equations, Meeus) ----------
+    // Sunrise / sunset at sea level (90.833 deg: refraction + the sun's half-width), as instants. Cached per day.
+    const sunCache = {};
+    function sunTimes(ymd) {
+      if (sunCache[ymd]) return sunCache[ymd];
+      const [Y, M, D] = ymd.split("-").map(Number), lat = 41.3309, lng = -74.1868;
+      const rad = Math.PI / 180, sin = (d) => Math.sin(d * rad), cos = (d) => Math.cos(d * rad);
+      const day0 = Date.UTC(Y, M - 1, D), jd0 = day0 / 864e5 + 2440587.5;
+      function sun(jd) {                          // the sun's declination (deg) and the equation of time (minutes)
+        const T = (jd - 2451545) / 36525;
+        const L0 = (280.46646 + T * (36000.76983 + T * 0.0003032)) % 360;
+        const Ma = 357.52911 + T * (35999.05029 - 0.0001537 * T);
+        const e = 0.016708634 - T * (0.000042037 + 0.0000001267 * T);
+        const C = sin(Ma) * (1.914602 - T * (0.004817 + 0.000014 * T)) + sin(2 * Ma) * (0.019993 - 0.000101 * T) + sin(3 * Ma) * 0.000289;
+        const om = 125.04 - 1934.136 * T, lambda = L0 + C - 0.00569 - 0.00478 * sin(om);
+        const eps = 23 + (26 + (21.448 - T * (46.815 + T * (0.00059 - T * 0.001813))) / 60) / 60 + 0.00256 * cos(om);
+        const decl = Math.asin(sin(eps) * sin(lambda)) / rad;
+        const y = Math.tan((eps / 2) * rad) ** 2;
+        const eq = 4 / rad * (y * sin(2 * L0) - 2 * e * sin(Ma) + 4 * e * y * sin(Ma) * cos(2 * L0) - 0.5 * y * y * sin(4 * L0) - 1.25 * e * e * sin(2 * Ma));
+        return { decl, eq };
+      }
+      function event(rising) {
+        let t = 720 - 4 * lng;                    // minutes after 0:00 UTC, refined twice
+        for (let i = 0; i < 3; i++) {
+          const { decl, eq } = sun(jd0 + t / 1440);
+          const ha = Math.acos(cos(90.833) / (cos(lat) * cos(decl)) - Math.tan(lat * rad) * Math.tan(decl * rad)) / rad;
+          t = 720 - 4 * (lng + (rising ? ha : -ha)) - eq;
+        }
+        return new Date(day0 + t * 60000);
+      }
+      return (sunCache[ymd] = { rise: event(true), set: event(false) });
     }
+    // Sunset as "HH:MM" New York time, rounded DOWN (a zmanim calendar never shows shkiah late).
+    const sunset = (ymd) => ny(new Date(Math.floor(sunTimes(ymd).set.getTime() / 60000) * 60000)).hm;
+
+    // ---------- Office hours -> day / night ----------
     // A closing time can be "HH:MM" or "sunset-120" (= 120 minutes before sunset; David 10-21: Friday until
     // 2 hours before sunset).
     function timeOf(v, p) {

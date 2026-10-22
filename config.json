@@ -14,6 +14,9 @@
   "qrs": [],
   "signs": { "left": ["Food", "Restrooms"], "right": ["HR"] },
   "mincha": { "show": true, "time": "15:45", "before": 15, "after": 15 },
+  "zmanim": true,
+  "candles": 18,
+  "forecast": true,
   "hours": {
     "sun": ["08:00", "22:00"],
     "mon": ["08:00", "22:00"],
