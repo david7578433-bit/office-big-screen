@@ -1127,6 +1127,9 @@
     const music = new Audio();
     music.preload = "none";
     let musicCh = 0, musicWanted = false, musicRetry = 0;
+    // Yiddish24 serves its channels from two places (yiddish24.com/streams): 27-58 (the chassidus and singer channels,
+    // piano, meditation, march, dance) on music2.y24.app, all the others on music.y24.app - the wrong one answers "not found".
+    const musicUrl = (ch) => `https://${ch >= 27 && ch <= 58 ? "music2" : "music"}.y24.app/${ch}`;
     function seasonChannel(now, p) {
       const h = heb(now), m = h.month, d = h.day;
       for (let i = 0; i <= 7; i++) { const x = heb(new Date(now.getTime() - i * 864e5)); if (x.month === "Kislev" && x.day === 25) return 4; }   // Chanukah
@@ -1156,11 +1159,11 @@
       music.volume = muted ? 0 : Math.max(0, Math.min(1, (Number.isFinite(+M.volume) ? +M.volume : 40) / 100));
       if (on && (!musicWanted || ch !== musicCh)) {
         musicWanted = true; musicCh = ch;
-        music.src = `https://music.y24.app/${ch}`;
+        music.src = musicUrl(ch);
         music.play().catch(() => {});            // blocked until the TV allows sound - the next ticks try again
       } else if (on && music.paused && Date.now() > musicRetry) {
         musicRetry = Date.now() + 15000;         // dropped or blocked: reconnect every 15 s
-        music.src = `https://music.y24.app/${musicCh}`;
+        music.src = musicUrl(musicCh);
         music.play().catch(() => {});
       } else if (!on && musicWanted) {
         musicWanted = false; musicCh = 0;
