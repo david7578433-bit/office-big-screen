@@ -233,6 +233,11 @@
 
   /* ANNOUNCEMENT (David 10-21): typed in CareHub, pops up over everything right away, until its end time. */
   #announce { position: fixed; inset: 0; z-index: 21; display: flex; align-items: center; justify-content: center; background: rgba(15, 69, 55, .97); text-align: center; padding: 0 6vw; }
+
+  /* VIDEO (David 11-04: "be able to play a video"): from CareHub's Play, full screen on black, with sound. The story,
+     the Mincha pop-up, the goal pop-up and an announcement still come on top; the video waits under them. */
+  #video { position: fixed; inset: 0; z-index: 18; background: #000; }
+  #video video, #video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; object-fit: contain; background: #000; }
   #announce .abox { animation: popin .8s cubic-bezier(.2, 1.4, .4, 1) both; }
   #announce .alabel { font-weight: 600; font-size: clamp(16px, 3.4vh, 48px); letter-spacing: .4em; padding-left: .4em; text-transform: uppercase; color: var(--gold-light); }
   #announce .atext { font-family: "Frank Ruhl Libre", "David", serif; font-weight: 700; font-size: clamp(44px, min(6.4vw, 12vh), 170px); line-height: 1.15; color: #fff; margin-top: 3vh; white-space: pre-line; }
@@ -339,6 +344,8 @@
   <div id="reached" hidden><div class="rbox"><div class="remoji">🎉</div><div class="rname" dir="auto"></div><div class="rwhat"></div></div></div>
 
   <div id="announce" hidden><div class="abox"><div class="alabel">Announcement</div><div class="atext" dir="auto"></div></div></div>
+
+  <div id="video" hidden></div>
 
   <div id="mincha" hidden><div class="mbox"><div class="mword" lang="yi" dir="rtl">מנחה</div><div class="mwhen" lang="yi" dir="rtl"></div></div></div>
 
@@ -950,7 +957,7 @@
     // confetti only while the Mazal Tov slide shows, and never under a pop-up
     const confetti = () => {
       const s = slides[cur];
-      window.setConfetti(!!s && s.dataset.kind === "mazal" && !night && !minchaOn && !annOn && !lrOn);
+      window.setConfetti(!!s && s.dataset.kind === "mazal" && !night && !minchaOn && !annOn && !lrOn && !vidOn);
     };
     const HAPPY = new Set(["mazal", "birthday", "anniversary", "welcome", "shoutout", "thanks"]);
     function show(i, now) {
@@ -1155,7 +1162,7 @@
         mm(p.hm) >= mm(mi.time) - (Number.isFinite(+mi.before) ? +mi.before : 15) && mm(p.hm) < mm(mi.time) + (Number.isFinite(+M.afterMincha) ? +M.afterMincha : 30);
       const on = M.show !== false && !night && inHours && !minchaQuiet && !(M.quiet !== false && mourning(now));
       const ch = (M.seasons !== false && seasonChannel(now, p)) || +M.channel || 11;
-      const muted = minchaOn || annOn || lrOn;
+      const muted = minchaOn || annOn || lrOn || vidOn;   // a video brings its own sound
       music.volume = muted ? 0 : Math.max(0, Math.min(1, (Number.isFinite(+M.volume) ? +M.volume : 40) / 100));
       if (on && (!musicWanted || ch !== musicCh)) {
         musicWanted = true; musicCh = ch;
@@ -1182,6 +1189,110 @@
       box.hidden = !on;
       if (on) { const b = box.firstElementChild; b.style.animation = "none"; void b.offsetWidth; b.style.animation = ""; }
       confetti();
+    }
+
+    // ---------- Video (David 11-04: "be able to play a video" - CareHub's Play / Stop) ----------
+    // cfg.video = the one video to play now: an uploaded file (the TV asks CareHub's key-gated video door for a
+    // short-lived link and streams it from CareHub's storage) or a YouTube video (YouTube's own player in a frame - its
+    // script never runs in this page, so it can't read the key in the address). Full screen with sound; the music is
+    // quiet meanwhile. Once, or again and again (loop) until Stop. Under the story / Mincha / an announcement it waits
+    // (paused) and goes on after. A "once" video plays one time per press of Play - remembered on this TV, so a reload
+    // never plays it again. Chrome plays the sound only if the TV allows it (--autoplay-policy=no-user-gesture-required,
+    // like the music); if not, the picture plays without sound rather than not at all.
+    const VIDEO_URL = CONFIG_URL ? CONFIG_URL + "/video" : "";
+    const YT_ORIGIN = "https://www.youtube-nocookie.com";
+    let vidOn = false, vidAt = "", vidHold = false, vid = null, ytTimer = 0;
+    const vidDone = () => { try { return list(JSON.parse(localStorage.getItem("video:done") || "[]")); } catch { return []; } };
+    function vidMarkDone(at) { try { localStorage.setItem("video:done", JSON.stringify([at, ...vidDone().filter((x) => x !== at)].slice(0, 20))); } catch {} }
+    const vidVolume = (v) => Math.max(0, Math.min(100, Number.isFinite(+v.volume) ? +v.volume : 60));
+    function videoTick() {
+      const v = cfg.video;
+      const want = v && typeof v.id === "string" && typeof v.at === "string" && v.at && !vidDone().includes(v.at) ? v : null;
+      if (!want) { if (vidOn) vidStop(); return; }
+      if (!vidOn || want.at !== vidAt) { vidStart(want); return; }
+      const hold = minchaOn || annOn || lrOn;
+      if (hold !== vidHold) { vidHold = hold; vidCommand(hold ? "pause" : "play"); }
+    }
+    function vidStart(v) {
+      vidStop();
+      vidOn = true; vidAt = v.at; vidHold = false;
+      $("video").hidden = false; document.body.classList.add("video-on"); confetti();
+      if (v.kind === "youtube" && /^[A-Za-z0-9_-]{11}$/.test(v.youtube || "")) ytStart(v);
+      else if (v.kind === "file") fileStart(v, 0);
+      else vidEnd(v.at);
+    }
+    // the end of a video (or one that can't play): back to the slides; this press of Play is done on this TV
+    function vidEnd(at) { if (at !== vidAt) return; vidMarkDone(at); vidStop(); }
+    function vidStop() {
+      clearInterval(ytTimer);
+      if (vid && vid.el) { vid.el.pause(); vid.el.removeAttribute("src"); vid.el.load(); }
+      vid = null; vidOn = false; vidAt = ""; vidHold = false;
+      const box = $("video"); box.textContent = ""; box.hidden = true;
+      document.body.classList.remove("video-on"); confetti();
+    }
+    async function vidLink(id) {
+      if (!VIDEO_URL || !KEY) return "";
+      try {
+        const r = await fetch(`${VIDEO_URL}?id=${encodeURIComponent(id)}`, { cache: "no-store", headers: { "X-Screen-Key": decodeURIComponent(KEY) } });
+        const j = r.ok ? await r.json() : null;
+        return j && j.ok === true && typeof j.url === "string" && /^https:\/\//.test(j.url) ? j.url : "";
+      } catch { return ""; }
+    }
+    async function fileStart(v, tries) {
+      const at = v.at, url = await vidLink(v.id);
+      if (at !== vidAt) return;                   // stopped or another Play meanwhile
+      if (!url) { vidEnd(at); return; }
+      const e = el("video", null, null, { playsinline: "" });
+      e.preload = "auto"; e.loop = v.loop === true; e.volume = vidVolume(v) / 100;
+      e.addEventListener("ended", () => vidEnd(at));
+      // a link that ran out (a video repeating for hours) or a dropped download: one fresh link, then give up
+      e.addEventListener("error", () => { if (at !== vidAt) return; if (tries < 1) fileStart(v, tries + 1); else vidEnd(at); });
+      const box = $("video"); box.textContent = ""; box.append(e);
+      vid = { el: e };
+      e.src = url;
+      if (!vidHold) e.play().catch(() => { e.muted = true; e.play().catch(() => {}); });   // no sound allowed: the picture alone
+    }
+    function ytStart(v) {
+      const at = v.at, f = el("iframe", null, null, {
+        allow: "autoplay; encrypted-media", referrerpolicy: "strict-origin-when-cross-origin", title: "Video",
+        src: `${YT_ORIGIN}/embed/${v.youtube}?autoplay=1&controls=0&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`,
+      });
+      vid = { yt: f, at, loop: v.loop === true, volume: vidVolume(v), state: -1, heard: false, started: Date.now(), muted: false };
+      // YouTube's player tells this page what it is doing once the page says it is listening (its usual message protocol)
+      f.addEventListener("load", () => { if (vid && vid.yt === f) { ytSend("listening"); ytCommand("setVolume", [vid.volume]); } });
+      $("video").append(f);
+      clearInterval(ytTimer);
+      ytTimer = setInterval(() => {
+        if (!vid || vid.yt !== f) { clearInterval(ytTimer); return; }
+        if (!vid.heard) ytSend("listening");
+        const age = Date.now() - vid.started;
+        // not playing 6 s after it opened: most likely no sound allowed on this TV - the picture alone, muted
+        if (vid.heard && vid.state !== 1 && vid.state !== 3 && !vid.muted && !vidHold && age > 6000) { vid.muted = true; ytCommand("mute"); ytCommand("playVideo"); }
+        // no YouTube player answering after 20 s (the office filter's page instead), or a video that never starts
+        // (removed, or not allowed on other sites): back to the slides
+        if ((!vid.heard && age > 20000) || (!vidHold && (vid.state === -1 || vid.state === 5) && age > 30000)) vidEnd(at);
+      }, 2000);
+    }
+    const ytSend = (event) => { try { vid.yt.contentWindow.postMessage(JSON.stringify({ event, id: 1, channel: "widget" }), YT_ORIGIN); } catch {} };
+    const ytCommand = (func, args = []) => { try { vid.yt.contentWindow.postMessage(JSON.stringify({ event: "command", func, args }), YT_ORIGIN); } catch {} };
+    addEventListener("message", (m) => {
+      if (m.origin !== YT_ORIGIN || !vid || !vid.yt || m.source !== vid.yt.contentWindow) return;
+      let d; try { d = typeof m.data === "string" ? JSON.parse(m.data) : m.data; } catch { return; }
+      if (!d || typeof d !== "object") return;
+      if (!vid.heard) { vid.heard = true; ytCommand("setVolume", [vid.volume]); if (vidHold) ytCommand("pauseVideo"); }
+      const state = d && d.event === "onStateChange" ? d.info : d && d.event === "infoDelivery" && d.info && Number.isFinite(d.info.playerState) ? d.info.playerState : null;
+      if (d && d.event === "onError") { vidEnd(vid.at); return; }
+      if (state === null || state === vid.state) return;
+      vid.state = state;
+      if (state === 0) {                          // ended
+        if (vid.loop) { ytCommand("seekTo", [0, true]); ytCommand("playVideo"); }
+        else vidEnd(vid.at);
+      }
+    });
+    function vidCommand(what) {
+      if (!vid) return;
+      if (vid.el) { if (what === "pause") vid.el.pause(); else vid.el.play().catch(() => { vid.el.muted = true; vid.el.play().catch(() => {}); }); }
+      else if (vid.yt) ytCommand(what === "pause" ? "pauseVideo" : "playVideo");
     }
 
     // ---------- Story days: the story full screen at the set times ----------
@@ -1224,7 +1335,7 @@
       try { localStorage.setItem("reached:" + rDay, JSON.stringify([...rSeen])); } catch {}
       const box = $("reached");
       if (rOn && Date.now() < rUntil) return;
-      const free = !night && !annOn && !minchaOn;
+      const free = !night && !annOn && !minchaOn && !vidOn;   // the names wait until a video is done
       const next = free ? rQueue.shift() : null;
       if (next) {
         box.querySelector(".rname").textContent = next;
@@ -1279,7 +1390,7 @@
       announceTick();
     }
     apply(DEFAULT);
-    setInterval(() => { clock(); announceTick(); reachedTick(ny()); musicTick(); }, 1000);
+    setInterval(() => { clock(); announceTick(); reachedTick(ny()); videoTick(); musicTick(); }, 1000);
     load().then((j) => j && apply(j));
     setInterval(() => load().then((j) => j && apply(j)), 20000);
     weather();
@@ -1295,8 +1406,10 @@
     const get = () => fetch(url(), { cache: "no-store" }).then((r) => (r.ok ? r.text() : null)).catch(() => null);
     let first = null;
     get().then((t) => { first = t; });
-    setInterval(() => get().then((t) => { if (t && first && t !== first) location.reload(); else if (t && !first) first = t; }), 60000);
-    setTimeout(() => location.reload(), 6 * 60 * 60 * 1000);
+    // never in the middle of a video (CareHub's Play): the reload waits until it is done
+    const busy = () => document.body.classList.contains("video-on");
+    setInterval(() => get().then((t) => { if (t && first && t !== first) { if (!busy()) location.reload(); } else if (t && !first) first = t; }), 60000);
+    setTimeout(function fresh() { if (busy()) setTimeout(fresh, 60000); else location.reload(); }, 6 * 60 * 60 * 1000);
   })();
   </script>
 </body>
