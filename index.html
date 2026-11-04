@@ -1245,8 +1245,11 @@
       const e = el("video", null, null, { playsinline: "" });
       e.preload = "auto"; e.loop = v.loop === true; e.volume = vidVolume(v) / 100;
       e.addEventListener("ended", () => vidEnd(at));
-      // a link that ran out (a video repeating for hours) or a dropped download: one fresh link, then give up
-      e.addEventListener("error", () => { if (at !== vidAt) return; if (tries < 1) fileStart(v, tries + 1); else vidEnd(at); });
+      // a link that ran out (the link lasts 6 hours; "Repeat until Stop" can run all day) or a dropped download: a fresh
+      // link - again and again for a video that played from it, once for one that never did (then back to the slides)
+      let played = false;
+      e.addEventListener("playing", () => { played = true; });
+      e.addEventListener("error", () => { if (at !== vidAt) return; if (played) fileStart(v, 0); else if (tries < 1) fileStart(v, tries + 1); else vidEnd(at); });
       const box = $("video"); box.textContent = ""; box.append(e);
       vid = { el: e };
       e.src = url;
@@ -1257,7 +1260,7 @@
         allow: "autoplay; encrypted-media", referrerpolicy: "strict-origin-when-cross-origin", title: "Video",
         src: `${YT_ORIGIN}/embed/${v.youtube}?autoplay=1&controls=0&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`,
       });
-      vid = { yt: f, at, loop: v.loop === true, volume: vidVolume(v), state: -1, heard: false, started: Date.now(), muted: false };
+      vid = { yt: f, at, loop: v.loop === true, volume: vidVolume(v), state: -1, heard: false, played: false, started: Date.now(), muted: false };
       // YouTube's player tells this page what it is doing once the page says it is listening (its usual message protocol)
       f.addEventListener("load", () => { if (vid && vid.yt === f) { ytSend("listening"); ytCommand("setVolume", [vid.volume]); } });
       $("video").append(f);
@@ -1268,9 +1271,9 @@
         const age = Date.now() - vid.started;
         // not playing 6 s after it opened: most likely no sound allowed on this TV - the picture alone, muted
         if (vid.heard && vid.state !== 1 && vid.state !== 3 && !vid.muted && !vidHold && age > 6000) { vid.muted = true; ytCommand("mute"); ytCommand("playVideo"); }
-        // no YouTube player answering after 20 s (the office filter's page instead), or a video that never starts
-        // (removed, or not allowed on other sites): back to the slides
-        if ((!vid.heard && age > 20000) || (!vidHold && (vid.state === -1 || vid.state === 5) && age > 30000)) vidEnd(at);
+        // no YouTube player answering after 20 s (the office filter's page instead), or a video that never starts playing
+        // within 45 s (removed, not allowed on other sites, or stuck loading): back to the slides
+        if ((!vid.heard && age > 20000) || (!vidHold && !vid.played && age > 45000)) vidEnd(at);
       }, 2000);
     }
     const ytSend = (event) => { try { vid.yt.contentWindow.postMessage(JSON.stringify({ event, id: 1, channel: "widget" }), YT_ORIGIN); } catch {} };
@@ -1280,10 +1283,12 @@
       let d; try { d = typeof m.data === "string" ? JSON.parse(m.data) : m.data; } catch { return; }
       if (!d || typeof d !== "object") return;
       if (!vid.heard) { vid.heard = true; ytCommand("setVolume", [vid.volume]); if (vidHold) ytCommand("pauseVideo"); }
-      const state = d && d.event === "onStateChange" ? d.info : d && d.event === "infoDelivery" && d.info && Number.isFinite(d.info.playerState) ? d.info.playerState : null;
-      if (d && d.event === "onError") { vidEnd(vid.at); return; }
+      const state = d.event === "onStateChange" ? d.info
+        : (d.event === "infoDelivery" || d.event === "initialDelivery") && d.info && Number.isFinite(d.info.playerState) ? d.info.playerState : null;
+      if (d.event === "onError") { vidEnd(vid.at); return; }
       if (state === null || state === vid.state) return;
       vid.state = state;
+      if (state === 1) vid.played = true;
       if (state === 0) {                          // ended
         if (vid.loop) { ytCommand("seekTo", [0, true]); ytCommand("playVideo"); }
         else vidEnd(vid.at);
